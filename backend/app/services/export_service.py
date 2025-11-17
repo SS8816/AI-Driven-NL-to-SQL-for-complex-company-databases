@@ -3,7 +3,7 @@ Export Service
 Handles exporting query results to various formats (CSV, JSON, GeoJSON)
 """
 
-from typing import List, Dict, Any, Literal
+from typing import List, Dict, Any, Literal, Optional
 import asyncio
 import io
 import json
