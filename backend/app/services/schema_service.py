@@ -12,7 +12,7 @@ from openai import AzureOpenAI
 from app.config import settings
 from app.utils.logger import app_logger
 from app.utils.errors import SchemaNotFoundError, ValidationError
-from app.models.schema import ColumnInfo, TableInfo, SchemaInfo, SchemaListResponse, SchemaSummary
+from app.models.schema import ColumnInfo, TableInfo, SchemaInfo, SchemaListResponse, SchemaListItem, SchemaSummary
 from app.core.parser import NestedSchemaParser
 
 
@@ -32,7 +32,7 @@ class SchemaService:
         List all available database schemas
 
         Returns:
-            SchemaListResponse with list of schema names
+            SchemaListResponse with list of schema objects
         """
         try:
             if not self.schemas_dir.exists():
@@ -41,17 +41,41 @@ class SchemaService:
 
             # Find all .txt schema files
             schema_files = list(self.schemas_dir.glob("*.txt"))
-            schema_names = [f.stem for f in schema_files]
+
+            schema_items = []
+            for schema_file in sorted(schema_files):
+                schema_name = schema_file.stem
+
+                # Quick parse to get table count
+                try:
+                    with open(schema_file, "r", encoding="utf-8") as f:
+                        schema_ddl = f.read()
+
+                    parser = NestedSchemaParser(schema_ddl)
+                    tables = parser.parse()
+                    table_count = len(tables)
+                except Exception as e:
+                    app_logger.warning(f"Failed to parse {schema_name}", error=str(e))
+                    table_count = 0
+
+                # Extract database name from schema name (usually before .latest_ or similar)
+                database = schema_name.split('.')[0] if '.' in schema_name else "awsdatacatalog"
+
+                schema_items.append(SchemaListItem(
+                    name=schema_name,
+                    database=database,
+                    table_count=table_count
+                ))
 
             app_logger.info(
                 "schemas_listed",
-                count=len(schema_names),
-                schemas=schema_names[:5]  # Log first 5
+                count=len(schema_items),
+                schemas=[s.name for s in schema_items[:5]]  # Log first 5
             )
 
             return SchemaListResponse(
-                schemas=sorted(schema_names),
-                count=len(schema_names)
+                schemas=schema_items,
+                count=len(schema_items)
             )
 
         except Exception as e:
