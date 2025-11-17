@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import { config } from '@/config';
+import { config as appConfig } from '@/config';
 import { storage } from '@/utils/storage';
 import { ApiResponse } from '@/types';
 
@@ -8,7 +8,7 @@ import { ApiResponse } from '@/types';
  */
 const createApiClient = (): AxiosInstance => {
   const client = axios.create({
-    baseURL: `${config.apiBaseUrl}${config.apiPrefix}`,
+    baseURL: `${appConfig.apiBaseUrl}${appConfig.apiPrefix}`,
     timeout: 300000, // 5 minutes for long queries
     headers: {
       'Content-Type': 'application/json',
@@ -18,7 +18,7 @@ const createApiClient = (): AxiosInstance => {
   // Request interceptor - add auth token
   client.interceptors.request.use(
     (config) => {
-      const token = storage.get<string>(config.storage.authToken);
+      const token = storage.get<string>(appConfig.storage.authToken);
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -35,8 +35,8 @@ const createApiClient = (): AxiosInstance => {
     (error: AxiosError<ApiResponse>) => {
       // Handle 401 Unauthorized - clear auth and redirect to login
       if (error.response?.status === 401) {
-        storage.remove(config.storage.authToken);
-        storage.remove(config.storage.user);
+        storage.remove(appConfig.storage.authToken);
+        storage.remove(appConfig.storage.user);
         window.location.href = '/login';
       }
 
