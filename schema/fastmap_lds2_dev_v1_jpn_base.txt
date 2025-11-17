@@ -1,0 +1,50 @@
+CREATE EXTERNAL TABLE `fastmap_lds2_dev_v1_jpn_base.latest_logicallanes`(
+)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/latest-state-partitioned-data/here-pace-analytics-umap-lds2-dev-v1-jpn/logicallanes/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='7b90d608-24af-4c46-9932-18caa0c9c841', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-umap-lds2-dev-v1-jpn-latest-state-crawler', 
+  'classification'='parquet')
+
+CREATE EXTERNAL TABLE `fastmap_lds2_dev_v1_jpn_base.latest_road`(
+)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/latest-state-partitioned-data/here-pace-analytics-umap-lds2-dev-v1-jpn/road/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='7b90d608-24af-4c46-9932-18caa0c9c841', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-umap-lds2-dev-v1-jpn-latest-state-crawler', 
+  'classification'='parquet')
+
+CREATE EXTERNAL TABLE `fastmap_lds2_dev_v1_jpn_base.latest_road`(
+)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/latest-state-partitioned-data/here-pace-analytics-umap-lds2-dev-v1-jpn/road/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='7b90d608-24af-4c46-9932-18caa0c9c841', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-umap-lds2-dev-v1-jpn-latest-state-crawler', 
+  'classification'='parquet')

@@ -1,0 +1,16 @@
+CREATE EXTERNAL TABLE `fastmap_cit_vw_v1_weu_place_base.latest_place`(
+)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/latest-state-partitioned-data/here-pace-analytics-fastmap-cit-vw-v1-weu-place/place/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='c8dd247d-e738-447d-a9cb-c4f725b87ab6', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='fastmap-cit-vw-v1-weu-place-raw-data-transformer-crawler', 
+  'classification'='parquet')

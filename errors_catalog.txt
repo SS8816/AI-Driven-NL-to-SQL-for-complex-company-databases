@@ -1,0 +1,131 @@
+# =============================================================================
+# Manual catalog of curated error patterns for SQL validation.
+# Format per error(MUST FOLLOW FOR MORE ENTRIES):
+#   [ERROR_TYPE]
+#   description: Human-readable explanation
+#   solution: How to fix the error
+#   indicators: Keywords that signal this error (comma-separated)
+#   severity: high|medium|low
+#
+# This file is read by error_knowledge.py and merged with production errors.
+# Add new patterns here as you discover them.
+# =============================================================================
+
+[MISMATCHED_COLUMN_ALIASES]
+description: UNNEST alias column count doesn't match array element structure
+solution: For array<row(a,b,c)>, use UNNEST(arr) AS t(a, b, c). For simple array, use UNNEST(arr) AS t(value). Count struct fields carefully!
+indicators: UNNEST, array, row, struct, alias
+severity: high
+
+[EXPRESSION_NOT_AGGREGATE]
+description: Non-aggregated column appears in SELECT without being in GROUP BY
+solution: Add all non-aggregate columns to GROUP BY clause, OR compute boolean flags in grouped CTE then JOIN back
+indicators: COUNT, SUM, AVG, MIN, MAX, aggregate, GROUP BY
+severity: high
+
+[INVALID_FUNCTION_ARGUMENT]
+description: Function called with incorrect parameter types or wrong type of geometry
+solution: Check function signature in docs. Common: ST_Length needs LINE_STRING/MULTI_LINE_STRING for SphericalGeography, st_geometryn expects INTEGER not BIGINT. Use explicit CAST.
+indicators: ST_Length, ST_Area, st_geometryn, SphericalGeography, GEOMETRY_COLLECTION, CAST
+severity: high
+
+[SYNTAX_ERROR]
+description: SQL syntax violation - missing JOIN conditions, misplaced clauses, unbalanced parentheses
+solution: 1) Verify all JOINs have ON/USING clause BEFORE next clause, 2) GROUP BY comes after all JOINs complete, 3) Check parentheses are balanced
+indicators: JOIN, GROUP BY, ON, USING, syntax
+severity: high
+
+[COLUMN_NOT_FOUND]
+description: Referenced column does not exist in table or is misspelled
+solution: Verify column name spelling (case-sensitive!), check table alias is correct, ensure column exists in schema
+indicators: column, not found, unknown
+severity: medium
+
+[TYPE_MISMATCH]
+description: Data type incompatibility in operation or comparison
+solution: Use explicit CAST to convert types. Check function return types match expected usage. Verify comparison operators use compatible types.
+indicators: type, mismatch, incompatible, CAST
+severity: medium
+
+[INVALID_CAST_ARGUMENT]
+description: Cannot cast value to target type (value is not convertible)
+solution: Use TRY_CAST instead of CAST to return NULL on failure. Verify source data format matches target type.
+indicators: CAST, TRY_CAST, convert, invalid
+severity: medium
+
+[TOO_MANY_COLUMNS]
+description: Row size exceeds 32MB limit due to too many or too large columns
+solution: Reduce column count in SELECT, split query into multiple queries, or filter data earlier
+indicators: 32MB, row size, limit exceeded
+severity: low
+
+[GEOMETRY_TYPE_ERROR]
+description: Geometry operation applied to wrong geometry type (e.g., ST_Length on POINT)
+solution: Guard with geometry type checks. Use ST_Dimension and ST_IsEmpty to validate before operations. ST_Length needs dimension=1, ST_Area needs dimension=2.
+indicators: ST_Length, ST_Area, POINT, POLYGON, LINE_STRING, geometry type
+severity: high
+
+[JOIN_MISSING_CONDITION]
+description: JOIN clause missing ON or USING condition
+solution: Add ON clause with join condition, or ON TRUE for UNNEST joins. Every JOIN (except CROSS JOIN) requires a condition.
+indicators: JOIN, ON, USING, missing
+severity: high
+
+[GROUP_BY_MISSING_COLUMN]
+description: SELECT contains non-aggregated column not in GROUP BY
+solution: Add missing column to GROUP BY clause, or wrap in aggregate function
+indicators: GROUP BY, aggregate, SELECT
+severity: high
+
+[AGGREGATE_IN_WHERE]
+description: Aggregate function used in WHERE clause (not allowed)
+solution: Move aggregate condition to HAVING clause, or compute in subquery
+indicators: WHERE, COUNT, SUM, AVG, aggregate
+severity: medium
+
+[UNNEST_WITHOUT_CROSS_JOIN]
+description: UNNEST used without CROSS JOIN syntax
+solution: Use CROSS JOIN UNNEST(array_col) AS t(alias), not just UNNEST in FROM clause
+indicators: UNNEST, CROSS JOIN
+severity: medium
+
+[ARRAY_INDEX_OUT_OF_BOUNDS]
+description: Accessing array with index that doesn't exist
+solution: Check array size with cardinality(array) before accessing, or use TRY to handle errors
+indicators: array, index, bounds, cardinality
+severity: low
+
+[NULL_GEOMETRY_OPERATION]
+description: Geometry operation applied to NULL geometry
+solution: Add WHERE geometry IS NOT NULL guard clause before any ST_ operations
+indicators: ST_, geometry, NULL, IS NOT NULL
+severity: medium
+
+[SPHERICAL_GEOGRAPHY_TYPE_ERROR]
+description: SphericalGeography function applied to wrong geometry type
+solution: ST_Length on SphericalGeography only supports LINE_STRING and MULTI_LINE_STRING. Check geometry type first with ST_Dimension.
+indicators: SphericalGeography, ST_Length, LINE_STRING, MULTI_LINE_STRING, GEOMETRY_COLLECTION
+severity: high
+
+[LAMBDA_SYNTAX_ERROR]
+description: Incorrect lambda expression syntax in TRANSFORM, FILTER, or REDUCE
+solution: Use arrow syntax: x -> expression. Ensure variable name matches in expression body.
+indicators: TRANSFORM, FILTER, REDUCE, lambda, arrow
+severity: medium
+
+[PARTITION_FILTER_MISSING]
+description: Query on partitioned table without partition filter (performance issue)
+solution: Add WHERE clause filtering on partition column (e.g., version, date) to reduce cost
+indicators: partition, version, performance
+severity: low
+
+
+# =============================================================================
+# ADD NEW ERRORS BELOW AS YOU DISCOVER THEM
+# Template:
+# [ERROR_TYPE_NAME]
+# description: What causes this error
+# solution: How to fix it
+# indicators: keyword1, keyword2, keyword3
+# severity: high|medium|low
+#

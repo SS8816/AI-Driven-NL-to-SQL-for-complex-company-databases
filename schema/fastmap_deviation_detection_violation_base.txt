@@ -1,0 +1,260 @@
+CREATE EXTERNAL TABLE `fastmap_deviation_detection_violation_base.raw_crosswalk_violations`(
+  `object_id` string, 
+  `layer` string, 
+  `partition` string, 
+  `schemaversion` string, 
+  `operation` string, 
+  `content` string, 
+  `violation_version` string)
+PARTITIONED BY ( 
+  `version` bigint, 
+  `catalog_id` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/raw-data/here-pace-analytics-deviation-detection-violation/data/crosswalk-violations/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='c219f09e-c430-465a-9bea-f09d1b926d7d', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-deviation-detection-violation-violation-raw-data-refiner-crawler', 
+  'classification'='parquet')
+
+CREATE EXTERNAL TABLE `fastmap_deviation_detection_violation_base.raw_lanegroup_violations`(
+  `object_id` string, 
+  `layer` string, 
+  `partition` string, 
+  `schemaversion` string, 
+  `operation` string, 
+  `content` string, 
+  `violation_version` string)
+PARTITIONED BY ( 
+  `version` bigint, 
+  `catalog_id` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/raw-data/here-pace-analytics-deviation-detection-violation/data/lanegroup-violations/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='3f595189-98d7-4268-89c3-d4a2e823c588', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-deviation-detection-violation-violation-raw-data-refiner-crawler', 
+  'classification'='parquet')
+
+CREATE EXTERNAL TABLE `fastmap_deviation_detection_violation_base.raw_roadrelation_violations`(
+  `object_id` string, 
+  `layer` string, 
+  `partition` string, 
+  `schemaversion` string, 
+  `operation` string, 
+  `content` string, 
+  `violation_version` string)
+PARTITIONED BY ( 
+  `version` bigint, 
+  `catalog_id` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/raw-data/here-pace-analytics-deviation-detection-violation/data/roadrelation-violations/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='3f595189-98d7-4268-89c3-d4a2e823c588', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-deviation-detection-violation-violation-raw-data-refiner-crawler', 
+  'classification'='parquet')
+
+CREATE EXTERNAL TABLE `fastmap_deviation_detection_violation_base.raw_roadstoppinglocation_violations`(
+  `object_id` string, 
+  `layer` string, 
+  `partition` string, 
+  `schemaversion` string, 
+  `operation` string, 
+  `content` string, 
+  `violation_version` string)
+PARTITIONED BY ( 
+  `version` bigint, 
+  `catalog_id` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/raw-data/here-pace-analytics-deviation-detection-violation/data/roadstoppinglocation-violations/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='c219f09e-c430-465a-9bea-f09d1b926d7d', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-deviation-detection-violation-violation-raw-data-refiner-crawler', 
+  'classification'='parquet')
+
+CREATE EXTERNAL TABLE `fastmap_deviation_detection_violation_base.raw_stopline_violations`(
+  `object_id` string, 
+  `layer` string, 
+  `partition` string, 
+  `schemaversion` string, 
+  `operation` string, 
+  `content` string, 
+  `violation_version` string)
+PARTITIONED BY ( 
+  `version` bigint, 
+  `catalog_id` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/raw-data/here-pace-analytics-deviation-detection-violation/data/stopline-violations/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='c219f09e-c430-465a-9bea-f09d1b926d7d', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-deviation-detection-violation-violation-raw-data-refiner-crawler', 
+  'classification'='parquet')
+
+CREATE EXTERNAL TABLE `fastmap_deviation_detection_violation_base.raw_trafficsignal_violations`(
+  `object_id` string, 
+  `layer` string, 
+  `partition` string, 
+  `schemaversion` string, 
+  `operation` string, 
+  `content` string, 
+  `violation_version` string)
+PARTITIONED BY ( 
+  `version` bigint, 
+  `catalog_id` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/raw-data/here-pace-analytics-deviation-detection-violation/data/trafficsignal-violations/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='c219f09e-c430-465a-9bea-f09d1b926d7d', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-deviation-detection-violation-violation-raw-data-refiner-crawler', 
+  'classification'='parquet')
+
+CREATE EXTERNAL TABLE `fastmap_deviation_detection_violation_base.raw_vehiclepath_violations`(
+  `object_id` string, 
+  `layer` string, 
+  `partition` string, 
+  `schemaversion` string, 
+  `operation` string, 
+  `content` string, 
+  `violation_version` string)
+PARTITIONED BY ( 
+  `version` bigint, 
+  `catalog_id` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/raw-data/here-pace-analytics-deviation-detection-violation/data/vehiclepath-violations/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='c219f09e-c430-465a-9bea-f09d1b926d7d', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-deviation-detection-violation-violation-raw-data-refiner-crawler', 
+  'classification'='parquet')
+
+CREATE EXTERNAL TABLE `fastmap_deviation_detection_violation_base.raw_vehiclepathassociations_violations`(
+  `object_id` string, 
+  `layer` string, 
+  `partition` string, 
+  `schemaversion` string, 
+  `operation` string, 
+  `content` string, 
+  `violation_version` string)
+PARTITIONED BY ( 
+  `version` bigint, 
+  `catalog_id` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/raw-data/here-pace-analytics-deviation-detection-violation/data/vehiclepathassociations-violations/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='3f595189-98d7-4268-89c3-d4a2e823c588', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-deviation-detection-violation-violation-raw-data-refiner-crawler', 
+  'classification'='parquet')
+CREATE EXTERNAL TABLE `fastmap_deviation_detection_violation_base.violation_processed_versions`(
+  `catalog_id` string, 
+  `version` bigint, 
+  `source_data_version` bigint, 
+  `process` string, 
+  `partition_count` bigint, 
+  `start_time` timestamp, 
+  `end_time` timestamp, 
+  `has_data_change` boolean)
+PARTITIONED BY ( 
+  `layer` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/version-data/here-pace-analytics-deviation-detection-violation/processed_versions/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='a453d812-f206-4c39-8c0f-a542c1e55198', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-deviation-detection-violation-violation-raw-data-refiner-processed-version-crawler', 
+  'classification'='parquet')
+
+CREATE EXTERNAL TABLE `fastmap_deviation_detection_violation_base.violation_versions`(
+  `bucket` string, 
+  `catalog_id` string, 
+  `layer` string, 
+  `version` bigint, 
+  `partition_count` bigint, 
+  `created_at` timestamp, 
+  `data_prefix` string, 
+  `model_version` string, 
+  `dependencies` array<struct<hrn:struct<partition:string,service:string,region:string,account:string,resource:string>,version:bigint,direct:boolean>>, 
+  `start_time` timestamp, 
+  `end_time` timestamp, 
+  `has_data_change` boolean)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/version-data/here-pace-analytics-deviation-detection-violation/versions/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='0a604676-8877-4063-a7ec-d82604001656', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-deviation-detection-violation-violation-raw-data-refiner-version-crawler', 
+  'classification'='parquet')

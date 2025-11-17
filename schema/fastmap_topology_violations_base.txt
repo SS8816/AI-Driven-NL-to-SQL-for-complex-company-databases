@@ -1,0 +1,68 @@
+CREATE EXTERNAL TABLE `fastmap_topology_violations_base.raw_roadrelation_violations`(
+)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/raw-data/here-pace-analytics-fastmap-topology-violations/data/roadrelation-violations/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='1e8a7388-4065-4a5b-8ad3-2790dcfe0485', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-fastmap-topology-violations-violation-raw-data-refiner-crawler', 
+  'classification'='parquet')
+
+CREATE EXTERNAL TABLE `fastmap_topology_violations_base.violation_processed_versions`(
+  `catalog_id` string, 
+  `version` bigint, 
+  `source_data_version` bigint, 
+  `process` string, 
+  `partition_count` bigint, 
+  `start_time` timestamp, 
+  `end_time` timestamp)
+PARTITIONED BY ( 
+  `layer` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/version-data/here-pace-analytics-fastmap-topology-violations/processed_versions/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='c7cbd031-5004-4e24-b0ad-236c31905d64', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-fastmap-topology-violations-violation-raw-data-refiner-processed-version-crawler', 
+  'classification'='parquet')
+
+CREATE EXTERNAL TABLE `fastmap_topology_violations_base.violation_versions`(
+  `bucket` string, 
+  `catalog_id` string, 
+  `layer` string, 
+  `version` bigint, 
+  `partition_count` bigint, 
+  `created_at` timestamp, 
+  `data_prefix` string, 
+  `model_version` string, 
+  `dependencies` array<struct<hrn:struct<partition:string,service:string,region:string,account:string,resource:string>,version:bigint,direct:boolean>>, 
+  `start_time` timestamp, 
+  `end_time` timestamp)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/version-data/here-pace-analytics-fastmap-topology-violations/versions/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='960177e2-df36-40b5-a458-fedb06ca873e', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-fastmap-topology-violations-violation-raw-data-refiner-version-crawler', 
+  'classification'='parquet')

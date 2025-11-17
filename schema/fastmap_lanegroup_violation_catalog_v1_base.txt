@@ -1,0 +1,79 @@
+CREATE EXTERNAL TABLE `fastmap_lanegroup_violation_catalog_v1_base.raw_laneviz_violations`(
+  `object_id` string, 
+  `layer` string, 
+  `partition` string, 
+  `schemaversion` string, 
+  `operation` string, 
+  `content` string, 
+  `violation_version` string)
+PARTITIONED BY ( 
+  `version` bigint, 
+  `catalog_id` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/raw-data/here-pace-analytics-lanegroup-violation-catalog-v1/data/laneviz-violations/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='9a23a1d9-7e4e-4f66-9764-b8d5a744fe0b', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-lanegroup-violation-catalog-v1-violation-raw-data-refiner-crawler', 
+  'classification'='parquet')
+
+CREATE EXTERNAL TABLE `fastmap_lanegroup_violation_catalog_v1_base.violation_processed_versions`(
+  `catalog_id` string, 
+  `version` bigint, 
+  `source_data_version` bigint, 
+  `process` string, 
+  `partition_count` bigint, 
+  `start_time` timestamp, 
+  `end_time` timestamp, 
+  `has_data_change` boolean)
+PARTITIONED BY ( 
+  `layer` string)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/version-data/here-pace-analytics-lanegroup-violation-catalog-v1/processed_versions/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='9c29b50f-d505-4459-b065-bbfffe8f0749', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-lanegroup-violation-catalog-v1-violation-raw-data-refiner-processed-version-crawler', 
+  'classification'='parquet')
+
+CREATE EXTERNAL TABLE `fastmap_lanegroup_violation_catalog_v1_base.violation_versions`(
+  `bucket` string, 
+  `catalog_id` string, 
+  `layer` string, 
+  `version` bigint, 
+  `partition_count` bigint, 
+  `created_at` timestamp, 
+  `data_prefix` string, 
+  `model_version` string, 
+  `dependencies` array<struct<hrn:struct<partition:string,service:string,region:string,account:string,resource:string>,version:bigint,direct:boolean>>, 
+  `start_time` timestamp, 
+  `end_time` timestamp, 
+  `has_data_change` boolean)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://here-mace-delta-lake-prod/version-data/here-pace-analytics-lanegroup-violation-catalog-v1/versions/_symlink_format_manifest'
+TBLPROPERTIES (
+  'CRAWL_RUN_ID'='c022590d-0cf7-4434-8bdb-975cb8ab2f23', 
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='here-pace-analytics-lanegroup-violation-catalog-v1-violation-raw-data-refiner-version-crawler', 
+  'classification'='parquet')

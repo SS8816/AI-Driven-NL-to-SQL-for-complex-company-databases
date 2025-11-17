@@ -1,0 +1,21 @@
+
+[FUNCTION_NOT_FOUND]
+Example: FUNCTION_NOT_FOUND: line 4:5: Function 'st_geometryfromjson' not registered
+Doc 1: Suggested solution : Change occurrences of CONCAT(str) to CONCAT(str, '') . In Athena engine version 3, functions can have no more than 127 arguments. For more information, see Too many arguments for function call . The approx_percentile function returns different results The approx_percentile function returns different results in Athena engine version 3 than it did in previous engine versions. Er...
+Doc 2: following example. SELECT to_spherical_geography(ST_GeometryFromText( 'LINESTRING (-40.2 28.9, -40.2 31.9, -37.2 31.9)')); Breaking changes When you migrate from previous engine versions to Athena engine version 3, certain changes can affect table schema, syntax, or data type usage. This section lists the associated error messages and provides suggested workarounds. Query syntax changes IGNORE NUL...
+Occurrences: 2
+---
+
+[TYPE_MISMATCH]
+Example: TYPE_MISMATCH: line 4:25: Cannot cast row(type varchar, coordinates array(array(double))) to varchar
+Doc 1: example: CREATE TABLE t1 (c1) AS SELECT CAST('a' as CHAR) as c1 UNION ALL SELECT CAST('b' AS VARCHAR) AS c1 Suggested Solution : In the example query, cast 'a' as varchar rather than char . Unwanted empty spaces after CHAR or VARCHAR coercion In Athena engine version 3, when char(X) and varchar data are coerced to a single type when forming an array or single column, char(65535) is the target type...
+Doc 2: following example. SELECT to_spherical_geography(ST_GeometryFromText( 'LINESTRING (-40.2 28.9, -40.2 31.9, -37.2 31.9)')); Breaking changes When you migrate from previous engine versions to Athena engine version 3, certain changes can affect table schema, syntax, or data type usage. This section lists the associated error messages and provides suggested workarounds. Query syntax changes IGNORE NUL...
+Occurrences: 1
+---
+
+[MISMATCHED_COLUMN_ALIASES]
+Example: MISMATCHED_COLUMN_ALIASES: line 27:14: Column alias list has 1 entries but 't' has 3 columns available
+Doc 1: FROM table1 WHERE (t1_col1, t1_col2) IN (SELECT (t2_col1, t2_col2) FROM table2) Solution : In Athena engine version 3, remove the parenthesis around the list of columns in the subquery SELECT statement, as in the following updated example query. SELECT * FROM table1 WHERE (t1_col1, t1_col2) IN (SELECT t2_col1, t2_col2 FROM table2) SKIP is a reserved word for DML queries The word SKIP is now a rese...
+Doc 2: minute(time) , minute(interval day to second). Cause : In Athena engine version 3, type checks have been made more precise for EXTRACT in accordance with the ANSI SQL specification. Suggested solution : Update the queries to make sure types are matched with the suggested function signatures. ORDER BY expressions must appear in SELECT list Error message : For SELECT DISTINCT, ORDER BY expressions m...
+Occurrences: 1
+---
