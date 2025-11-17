@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-dark-border;
+  }
+
+  body {
+    @apply bg-dark-bg text-gray-100 font-sans antialiased;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-dark-sidebar;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-dark-border rounded hover:bg-dark-hover;
+  }
+}
+
+@layer components {
+  /* Custom component styles */
+  .card {
+    @apply bg-dark-card rounded-lg border border-dark-border p-6;
+  }
+
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-dark-bg;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500;
+  }
+
+  .btn-secondary {
+    @apply btn bg-dark-card text-gray-300 hover:bg-dark-hover border border-dark-border focus:ring-primary-500;
+  }
+
+  .btn-danger {
+    @apply btn bg-error text-white hover:bg-red-600 focus:ring-error;
+  }
+
+  .input {
+    @apply w-full bg-dark-sidebar border border-dark-border rounded-lg px-4 py-2 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-gray-300 mb-2;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-gray-100 hover:bg-dark-hover rounded-lg transition-all duration-200 cursor-pointer;
+  }
+
+  .sidebar-link-active {
+    @apply sidebar-link bg-dark-hover text-gray-100 border-l-4 border-primary-500;
+  }
+}
+
+/* Mapbox overrides */
+.mapboxgl-popup-content {
+  @apply bg-dark-card text-gray-100 rounded-lg shadow-xl;
+}
+
+.mapboxgl-popup-close-button {
+  @apply text-gray-400 hover:text-gray-100;
+}
+
+.mapboxgl-ctrl-group {
+  @apply bg-dark-card border-dark-border;
+}
+
+.mapboxgl-ctrl-group button {
+  @apply text-gray-300 hover:text-gray-100;
+}
