@@ -6,3 +6,4 @@ export { Card } from './Card';
 export { Loading, Spinner } from './Loading';
 export { Badge } from './Badge';
 export { EmptyState } from './EmptyState';
+export { Tabs, TabPanel } from './Tabs';

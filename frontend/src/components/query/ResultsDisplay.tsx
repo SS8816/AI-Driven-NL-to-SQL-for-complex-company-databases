@@ -7,11 +7,13 @@ import {
   MapPin,
   FileJson,
   FileSpreadsheet,
+  Search,
 } from 'lucide-react';
 import { QueryResult } from '@/types';
 import { Card, Button, Badge } from '@/components/common';
 import { formatNumber, formatExecutionTime, formatSQL } from '@/utils/format';
 import { resultsApi } from '@/api';
+import { CTASQueryInterface } from './CTASQueryInterface';
 import toast from 'react-hot-toast';
 
 interface ResultsDisplayProps {
@@ -21,6 +23,7 @@ interface ResultsDisplayProps {
 
 export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
   const [isExporting, setIsExporting] = useState(false);
+  const [showCTASQuery, setShowCTASQuery] = useState(false);
 
   // Extract database from CTAS table name
   const database = result.ctas_table_name?.split('.')[0] || 'unknown';
@@ -116,7 +119,7 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
             Export JSON
           </Button>
 
-          {result.has_geometry && (
+          {hasGeometry && (
             <>
               <Button
                 onClick={() => handleExport('geojson')}
@@ -135,6 +138,17 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
                 </Button>
               )}
             </>
+          )}
+
+          {result.ctas_table_name && (
+            <Button
+              onClick={() => setShowCTASQuery(!showCTASQuery)}
+              variant={showCTASQuery ? 'primary' : 'secondary'}
+              size="sm"
+            >
+              <Search className="w-4 h-4 mr-2" />
+              {showCTASQuery ? 'Hide' : 'Query'} CTAS Table
+            </Button>
           )}
         </div>
       </Card>
@@ -195,6 +209,14 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
             </table>
           </div>
         </Card>
+      )}
+
+      {/* CTAS Query Interface */}
+      {showCTASQuery && result.ctas_table_name && (
+        <CTASQueryInterface
+          ctasTableName={result.ctas_table_name}
+          database={database}
+        />
       )}
     </div>
   );

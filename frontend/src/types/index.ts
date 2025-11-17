@@ -163,3 +163,36 @@ export interface AppError {
   code?: string;
   details?: Record<string, any>;
 }
+
+// CTAS Query Types
+export interface CTASSchemaColumn {
+  name: string;
+  type: string;
+}
+
+export interface CTASSchemaResponse {
+  table_name: string;
+  database: string;
+  columns: CTASSchemaColumn[];
+  has_country_column: boolean;
+}
+
+export interface CTASQueryRequest {
+  custom_sql: string;
+  limit?: number;
+}
+
+export interface CTASQueryResponse {
+  success: boolean;
+  columns?: string[];
+  rows?: Array<Record<string, any>>;
+  row_count: number;
+  execution_time_ms: number;
+  error?: string;
+}
+
+export interface CTASCountriesResponse {
+  table_name: string;
+  countries: string[];
+  country_count: number;
+}
