@@ -32,7 +32,7 @@ class UserQueriesRepository:
             User ID
         """
         try:
-            async with await db.get_connection() as conn:
+            async with db.get_connection() as conn:
                 # Try to get existing user
                 cursor = await conn.execute(
                     "SELECT id FROM users WHERE username = ?",
@@ -70,7 +70,7 @@ class UserQueriesRepository:
     async def get_user_id(self, username: str) -> Optional[int]:
         """Get user ID by username"""
         try:
-            async with await db.get_connection() as conn:
+            async with db.get_connection() as conn:
                 cursor = await conn.execute(
                     "SELECT id FROM users WHERE username = ?",
                     (username,)
@@ -122,7 +122,7 @@ class UserQueriesRepository:
                 # User should exist from auth, but create if missing
                 user_id = await self.create_or_update_user(username, f"{username}@here.com", username)
 
-            async with await db.get_connection() as conn:
+            async with db.get_connection() as conn:
                 cursor = await conn.execute(
                     """INSERT INTO user_queries (
                         user_id, rule_category, nl_query, sql, ctas_name,
@@ -177,7 +177,7 @@ class UserQueriesRepository:
             if not user_id:
                 return []
 
-            async with await db.get_connection() as conn:
+            async with db.get_connection() as conn:
                 conn.row_factory = lambda cursor, row: {
                     col[0]: row[idx] for idx, col in enumerate(cursor.description)
                 }
@@ -244,7 +244,7 @@ class UserQueriesRepository:
             if not user_id:
                 raise ValueError(f"User not found: {username}")
 
-            async with await db.get_connection() as conn:
+            async with db.get_connection() as conn:
                 # Get current bookmark status
                 cursor = await conn.execute(
                     "SELECT bookmarked FROM user_queries WHERE id = ? AND user_id = ?",
