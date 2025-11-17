@@ -13,7 +13,8 @@ class Settings(BaseSettings):
 
     # Application
     APP_NAME: str = "AI-Driven Violation Detection API"
-    ENV: str = "development"
+    ENVIRONMENT: str = "development"
+    DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
     API_V1_PREFIX: str = "/api/v1"
 
@@ -80,6 +81,13 @@ class Settings(BaseSettings):
     def function_vectorstore_path(self) -> Path:
         """Get function vectorstore directory as Path object"""
         return Path(self.FUNCTION_VECTORSTORE_PATH)
+
+    @property
+    def DATABASE_PATH(self) -> Path:
+        """Get database file path from DATABASE_URL"""
+        # Extract path from sqlite URL format: sqlite+aiosqlite:///./app_data.db
+        db_path = self.DATABASE_URL.split("///")[-1]
+        return Path(db_path)
 
     def validate_paths(self) -> None:
         """Validate that required paths exist"""
