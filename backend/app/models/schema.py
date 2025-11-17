@@ -124,3 +124,38 @@ class SchemaSummary(BaseModel):
             }
         }
     }
+
+
+class RedactedDDLRequest(BaseModel):
+    """Request for redacted DDL of selected tables/columns"""
+    schema_name: str = Field(..., description="Schema name")
+    selected_tables: Dict[str, List[str]] = Field(..., description="Map of table names to column lists")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "schema_name": "fastmap_prod2_v2_13_base.latest_",
+                "selected_tables": {
+                    "admin": ["id", "geometry", "iso_country_code"],
+                    "vehicle_path": ["id", "geometry"]
+                }
+            }
+        }
+    }
+
+
+class RedactedDDLResponse(BaseModel):
+    """Response with redacted DDL"""
+    ddl: str = Field(..., description="Redacted DDL for selected tables/columns")
+    table_count: int = Field(..., description="Number of tables in DDL")
+    total_columns: int = Field(..., description="Total columns in DDL")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "ddl": "CREATE EXTERNAL TABLE admin (\n  id varchar,\n  geometry struct<...>,\n  iso_country_code varchar\n)\n...",
+                "table_count": 2,
+                "total_columns": 5
+            }
+        }
+    }

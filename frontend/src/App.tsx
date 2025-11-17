@@ -63,6 +63,9 @@ export default function App() {
               background: '#242936',
               color: '#F3F4F6',
               border: '1px solid #2D3548',
+              maxWidth: '400px',
+              wordWrap: 'break-word',
+              wordBreak: 'break-word',
             },
             success: {
               iconTheme: {

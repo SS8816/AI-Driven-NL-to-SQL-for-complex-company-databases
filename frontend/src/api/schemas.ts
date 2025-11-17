@@ -36,4 +36,20 @@ export const schemasApi = {
       nl_query: nlQuery,
     });
   },
+
+  /**
+   * Get redacted DDL for selected tables and columns
+   */
+  getRedactedDDL: async (
+    schemaName: string,
+    selectedTables: Record<string, string[]>
+  ): Promise<{ ddl: string; table_count: number; total_columns: number }> => {
+    return api.post<{ ddl: string; table_count: number; total_columns: number }>(
+      endpoints.schemas.redactedDDL,
+      {
+        schema_name: schemaName,
+        selected_tables: selectedTables,
+      }
+    );
+  },
 };
