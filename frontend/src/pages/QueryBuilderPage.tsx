@@ -252,13 +252,13 @@ export function QueryBuilderPage() {
                 disabled={isExecuting}
                 isLoading={isExecuting}
                 loadingText="Executing query..."
-                className="flex-1 justify-center"
+                className="flex-1"
               >
                 <Play className="w-4 h-4 mr-2" />
                 Execute Query
               </Button>
 
-              <Button variant="secondary" disabled className="justify-center">
+              <Button variant="secondary" disabled>
                 <Zap className="w-4 h-4 mr-2" />
                 {Object.keys(extractedEntities.tables).length} Tables Selected
               </Button>

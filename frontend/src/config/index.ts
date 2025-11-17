@@ -51,6 +51,7 @@ export const endpoints = {
     detail: (name: string) => `/schemas/${name}`,
     summary: (name: string) => `/schemas/${name}/summary`,
     analyze: '/schemas/analyze',
+    redactedDDL: '/schemas/redacted-ddl',
   },
   queries: {
     execute: '/queries/execute',

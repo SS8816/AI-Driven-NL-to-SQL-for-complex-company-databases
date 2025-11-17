@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Check, Plus, X, Edit2 } from 'lucide-react';
+import { Sparkles, Check, X, Edit2 } from 'lucide-react';
 import { schemasApi } from '@/api';
 import { Button, Card, Select } from '@/components/common';
 import { EntityExtractionResult, SchemaInfo } from '@/types';
@@ -24,6 +24,10 @@ export function EntityExtraction({
   const [schemaInfo, setSchemaInfo] = useState<SchemaInfo | null>(null);
   const [loadingSchema, setLoadingSchema] = useState(false);
 
+  // Redacted DDL for selected tables/columns
+  const [redactedDDL, setRedactedDDL] = useState<string | null>(null);
+  const [loadingDDL, setLoadingDDL] = useState(false);
+
   // Selected values for adding new table/column
   const [selectedNewTable, setSelectedNewTable] = useState('');
   const [selectedNewColumnByTable, setSelectedNewColumnByTable] = useState<Record<string, string>>({});
@@ -44,6 +48,28 @@ export function EntityExtraction({
 
     fetchSchemaDetails();
   }, [schemaName]);
+
+  // Fetch redacted DDL whenever editable tables change
+  useEffect(() => {
+    const fetchRedactedDDL = async () => {
+      if (Object.keys(editableTables).length === 0) {
+        setRedactedDDL(null);
+        return;
+      }
+
+      setLoadingDDL(true);
+      try {
+        const result = await schemasApi.getRedactedDDL(schemaName, editableTables);
+        setRedactedDDL(result.ddl);
+      } catch (error) {
+        console.error('Failed to load redacted DDL:', error);
+      } finally {
+        setLoadingDDL(false);
+      }
+    };
+
+    fetchRedactedDDL();
+  }, [schemaName, editableTables]);
 
   const handleExtract = async () => {
     if (!nlQuery.trim()) return;
@@ -164,7 +190,7 @@ export function EntityExtraction({
             isLoading={isExtracting}
             loadingText="Analyzing query with GPT..."
             disabled={!nlQuery.trim() || loadingSchema}
-            className="w-full justify-center"
+            className="w-full"
           >
             <Sparkles className="w-4 h-4 mr-2" />
             Extract Tables & Columns
@@ -201,7 +227,7 @@ export function EntityExtraction({
                       variant="ghost"
                       size="sm"
                       onClick={() => handleRemoveTable(tableName)}
-                      className="text-error hover:text-red-400 justify-center"
+                      className="text-error hover:text-red-400"
                     >
                       <X className="w-4 h-4 mr-1" />
                       Remove Table
@@ -247,9 +273,7 @@ export function EntityExtraction({
                       size="sm"
                       onClick={() => handleAddColumn(tableName)}
                       disabled={!selectedNewColumnByTable[tableName]}
-                      className="justify-center"
                     >
-                      <Plus className="w-4 h-4 mr-1" />
                       Add
                     </Button>
                   </div>
@@ -272,13 +296,24 @@ export function EntityExtraction({
                   variant="secondary"
                   onClick={handleAddTable}
                   disabled={!selectedNewTable}
-                  className="justify-center"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
                   Add Table
                 </Button>
               </div>
             </div>
+
+            {/* Redacted DDL Display */}
+            {redactedDDL && (
+              <div className="p-4 bg-dark-sidebar rounded-lg border border-dark-border">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium text-gray-300">Redacted DDL for Selected Entities</h4>
+                  {loadingDDL && <span className="text-xs text-gray-500">Updating...</span>}
+                </div>
+                <pre className="text-xs font-mono text-gray-400 overflow-x-auto max-h-64 overflow-y-auto whitespace-pre-wrap">
+                  {redactedDDL}
+                </pre>
+              </div>
+            )}
 
             {/* Re-extract button */}
             <Button
@@ -286,7 +321,7 @@ export function EntityExtraction({
               variant="ghost"
               size="sm"
               isLoading={isExtracting}
-              className="w-full justify-center"
+              className="w-full"
             >
               <Sparkles className="w-4 h-4 mr-2" />
               Re-run Entity Extraction

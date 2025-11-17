@@ -71,7 +71,7 @@ export class QueryWebSocket {
         this.ws?.send(
           JSON.stringify({
             token: this.token,
-            ...request,
+            request: request,
           })
         );
       };

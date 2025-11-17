@@ -6,7 +6,7 @@ Handles database schema operations
 from typing import Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.models.schema import SchemaListResponse, SchemaInfo, SchemaSummary
+from app.models.schema import SchemaListResponse, SchemaInfo, SchemaSummary, RedactedDDLRequest, RedactedDDLResponse
 from app.models.query import EntityExtractionResponse, AnalyzeQueryRequest
 from app.models.auth import UserInfo
 from app.services.schema_service import schema_service
@@ -218,4 +218,69 @@ async def analyze_query(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"message": "Failed to analyze query", "error": str(e)}
+        )
+
+
+@router.post("/redacted-ddl", response_model=RedactedDDLResponse)
+async def get_redacted_ddl(
+    request: RedactedDDLRequest,
+    user: UserInfo = Depends(get_current_user)
+):
+    """
+    Get redacted DDL for selected tables and columns
+
+    Returns the full DDL schema only for the selected tables/columns,
+    filtering out any unselected tables or columns.
+
+    Requires: Authentication
+
+    Args:
+        request: Redacted DDL request with schema name and selected tables/columns
+
+    Returns:
+        RedactedDDLResponse with DDL string, table count, and column count
+
+    Raises:
+        HTTPException 404: If schema not found
+    """
+    try:
+        # Get full DDL for selected columns
+        ddl = schema_service.get_full_ddl_for_columns(
+            schema_name=request.schema_name,
+            selected_tables=request.selected_tables
+        )
+
+        # Calculate stats
+        table_count = len(request.selected_tables)
+        total_columns = sum(len(cols) for cols in request.selected_tables.values())
+
+        response = RedactedDDLResponse(
+            ddl=ddl,
+            table_count=table_count,
+            total_columns=total_columns
+        )
+
+        app_logger.info(
+            "redacted_ddl_generated",
+            username=user.username,
+            schema_name=request.schema_name,
+            table_count=table_count,
+            total_columns=total_columns
+        )
+
+        return response
+
+    except SchemaNotFoundError:
+        raise not_found_exception("Schema", request.schema_name)
+
+    except Exception as e:
+        app_logger.error(
+            "get_redacted_ddl_error",
+            username=user.username,
+            schema_name=request.schema_name,
+            error=str(e)
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"message": "Failed to generate redacted DDL", "error": str(e)}
         )
