@@ -60,7 +60,7 @@ export interface ExecuteQueryRequest {
   nl_query: string;
   schema_name: string;
   selected_tables: Record<string, string[]>;
-  execution_mode: 'sync' | 'async';
+  execution_mode: 'normal' | 'reexecute' | 'force';
   guardrails?: string;
 }
 

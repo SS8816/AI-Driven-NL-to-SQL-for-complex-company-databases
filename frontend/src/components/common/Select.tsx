@@ -13,6 +13,7 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   helperText?: string;
   options: SelectOption[];
   placeholder?: string;
+  maxVisibleOptions?: number; // Set this to enable scrollable list mode
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
@@ -25,6 +26,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
       id,
       options,
       placeholder,
+      maxVisibleOptions,
       ...props
     },
     ref
@@ -42,14 +44,21 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           <select
             ref={ref}
             id={selectId}
+            size={maxVisibleOptions}
             className={cn(
-              'input appearance-none pr-10',
+              maxVisibleOptions
+                ? 'w-full px-3 py-2 bg-dark-sidebar border border-dark-border rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 overflow-y-auto'
+                : 'input appearance-none pr-10',
               error && 'border-error focus:ring-error',
               className
             )}
+            style={maxVisibleOptions ? {
+              height: 'auto',
+              maxHeight: '16rem', // Limit to ~10 options visible
+            } : undefined}
             {...props}
           >
-            {placeholder && (
+            {placeholder && !maxVisibleOptions && (
               <option value="" disabled>
                 {placeholder}
               </option>
@@ -60,7 +69,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
               </option>
             ))}
           </select>
-          <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+          {!maxVisibleOptions && (
+            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+          )}
         </div>
         {error && <p className="mt-1 text-sm text-error">{error}</p>}
         {helperText && !error && (

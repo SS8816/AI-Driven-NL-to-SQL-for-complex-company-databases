@@ -51,13 +51,19 @@ export function QueryBuilderPage() {
       return;
     }
 
+    // Map UI cache option to backend execution mode
+    const executionModeMap = {
+      use_cache: 'normal',      // Use cached result if available
+      use_sql: 'reexecute',     // Use cached SQL on latest data
+      regenerate: 'force',      // Force regenerate SQL from scratch
+    } as const;
+
     const request: ExecuteQueryRequest = {
       rule_category: ruleCategory.toUpperCase(), // Make case-insensitive for caching
       nl_query: nlQuery,
       schema_name: selectedSchema!,
       selected_tables: extractedEntities.tables,
-      execution_mode: 'sync', // Always sync for now
-      // Cache handling will be done backend based on rule_category
+      execution_mode: executionModeMap[cacheOption],
     };
 
     setIsExecuting(true);
@@ -246,13 +252,13 @@ export function QueryBuilderPage() {
                 disabled={isExecuting}
                 isLoading={isExecuting}
                 loadingText="Executing query..."
-                className="flex-1"
+                className="flex-1 justify-center"
               >
                 <Play className="w-4 h-4 mr-2" />
                 Execute Query
               </Button>
 
-              <Button variant="secondary" disabled>
+              <Button variant="secondary" disabled className="justify-center">
                 <Zap className="w-4 h-4 mr-2" />
                 {Object.keys(extractedEntities.tables).length} Tables Selected
               </Button>

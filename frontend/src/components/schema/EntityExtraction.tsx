@@ -201,7 +201,7 @@ export function EntityExtraction({
                       variant="ghost"
                       size="sm"
                       onClick={() => handleRemoveTable(tableName)}
-                      className="text-error hover:text-red-400"
+                      className="text-error hover:text-red-400 justify-center"
                     >
                       <X className="w-4 h-4 mr-1" />
                       Remove Table

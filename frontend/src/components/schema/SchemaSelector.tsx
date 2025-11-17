@@ -42,6 +42,7 @@ export function SchemaSelector() {
         onChange={(e) => setSelectedSchema(e.target.value || null)}
         options={options}
         placeholder="Select a schema..."
+        maxVisibleOptions={8}
         className="flex-1"
       />
     </div>
