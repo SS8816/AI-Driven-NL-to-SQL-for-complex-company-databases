@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sparkles, Check, Plus, X, Edit2 } from 'lucide-react';
 import { schemasApi } from '@/api';
-import { Button, Card, Input } from '@/components/common';
-import { EntityExtractionResult } from '@/types';
+import { Button, Card, Select } from '@/components/common';
+import { EntityExtractionResult, SchemaInfo } from '@/types';
 import toast from 'react-hot-toast';
 
 interface EntityExtractionProps {
@@ -19,8 +19,31 @@ export function EntityExtraction({
   const [isExtracting, setIsExtracting] = useState(false);
   const [extracted, setExtracted] = useState<EntityExtractionResult | null>(null);
   const [editableTables, setEditableTables] = useState<Record<string, string[]>>({});
-  const [newTableName, setNewTableName] = useState('');
-  const [newColumnsByTable, setNewColumnsByTable] = useState<Record<string, string>>({});
+
+  // Schema details for populating dropdowns
+  const [schemaInfo, setSchemaInfo] = useState<SchemaInfo | null>(null);
+  const [loadingSchema, setLoadingSchema] = useState(false);
+
+  // Selected values for adding new table/column
+  const [selectedNewTable, setSelectedNewTable] = useState('');
+  const [selectedNewColumnByTable, setSelectedNewColumnByTable] = useState<Record<string, string>>({});
+
+  // Fetch full schema details when schema changes
+  useEffect(() => {
+    const fetchSchemaDetails = async () => {
+      setLoadingSchema(true);
+      try {
+        const details = await schemasApi.getDetail(schemaName);
+        setSchemaInfo(details);
+      } catch (error) {
+        console.error('Failed to load schema details:', error);
+      } finally {
+        setLoadingSchema(false);
+      }
+    };
+
+    fetchSchemaDetails();
+  }, [schemaName]);
 
   const handleExtract = async () => {
     if (!nlQuery.trim()) return;
@@ -40,7 +63,7 @@ export function EntityExtraction({
   };
 
   const handleAddColumn = (tableName: string) => {
-    const newColumn = newColumnsByTable[tableName]?.trim();
+    const newColumn = selectedNewColumnByTable[tableName];
     if (!newColumn) return;
 
     const updatedTables = {
@@ -49,12 +72,11 @@ export function EntityExtraction({
     };
 
     setEditableTables(updatedTables);
-    setNewColumnsByTable((prev) => ({
+    setSelectedNewColumnByTable((prev) => ({
       ...prev,
       [tableName]: '',
     }));
 
-    // Update parent with new tables
     onExtracted({
       ...extracted!,
       tables: updatedTables,
@@ -69,8 +91,6 @@ export function EntityExtraction({
     };
 
     setEditableTables(updatedTables);
-
-    // Update parent
     onExtracted({
       ...extracted!,
       tables: updatedTables,
@@ -78,7 +98,7 @@ export function EntityExtraction({
   };
 
   const handleAddTable = () => {
-    const tableName = newTableName.trim();
+    const tableName = selectedNewTable;
     if (!tableName || editableTables[tableName]) {
       toast.error('Invalid or duplicate table name');
       return;
@@ -90,9 +110,8 @@ export function EntityExtraction({
     };
 
     setEditableTables(updatedTables);
-    setNewTableName('');
+    setSelectedNewTable('');
 
-    // Update parent
     onExtracted({
       ...extracted!,
       tables: updatedTables,
@@ -105,13 +124,34 @@ export function EntityExtraction({
     const { [tableName]: removed, ...rest } = editableTables;
     setEditableTables(rest);
 
-    // Update parent
     onExtracted({
       ...extracted!,
       tables: rest,
     });
 
     toast.success(`Table "${tableName}" removed`);
+  };
+
+  // Get available tables (not yet selected)
+  const availableTables = schemaInfo?.tables
+    .filter((t) => !editableTables[t.table_name])
+    .map((t) => ({
+      value: t.table_name,
+      label: `${t.table_name} (${t.column_count} columns)`,
+    })) || [];
+
+  // Get available columns for a specific table (not yet selected)
+  const getAvailableColumns = (tableName: string) => {
+    const schemaTable = schemaInfo?.tables.find((t) => t.table_name === tableName);
+    if (!schemaTable) return [];
+
+    const selectedColumns = editableTables[tableName] || [];
+    return schemaTable.columns
+      .filter((col) => !selectedColumns.includes(col.column_name))
+      .map((col) => ({
+        value: col.column_name,
+        label: `${col.column_name} (${col.full_type})`,
+      }));
   };
 
   return (
@@ -123,8 +163,8 @@ export function EntityExtraction({
             variant="secondary"
             isLoading={isExtracting}
             loadingText="Analyzing query with GPT..."
-            disabled={!nlQuery.trim()}
-            className="w-full"
+            disabled={!nlQuery.trim() || loadingSchema}
+            className="w-full justify-center"
           >
             <Sparkles className="w-4 h-4 mr-2" />
             Extract Tables & Columns
@@ -163,7 +203,7 @@ export function EntityExtraction({
                       onClick={() => handleRemoveTable(tableName)}
                       className="text-error hover:text-red-400"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-4 h-4 mr-1" />
                       Remove Table
                     </Button>
                   </div>
@@ -190,31 +230,27 @@ export function EntityExtraction({
 
                   {/* Add Column */}
                   <div className="flex gap-2">
-                    <Input
-                      type="text"
-                      placeholder="Add column name..."
-                      value={newColumnsByTable[tableName] || ''}
+                    <Select
+                      value={selectedNewColumnByTable[tableName] || ''}
                       onChange={(e) =>
-                        setNewColumnsByTable((prev) => ({
+                        setSelectedNewColumnByTable((prev) => ({
                           ...prev,
                           [tableName]: e.target.value,
                         }))
                       }
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          handleAddColumn(tableName);
-                        }
-                      }}
+                      options={getAvailableColumns(tableName)}
+                      placeholder="Select column to add..."
                       className="flex-1"
                     />
                     <Button
                       variant="secondary"
                       size="sm"
                       onClick={() => handleAddColumn(tableName)}
-                      disabled={!newColumnsByTable[tableName]?.trim()}
+                      disabled={!selectedNewColumnByTable[tableName]}
+                      className="justify-center"
                     >
                       <Plus className="w-4 h-4 mr-1" />
-                      Add Column
+                      Add
                     </Button>
                   </div>
                 </div>
@@ -225,22 +261,18 @@ export function EntityExtraction({
             <div className="p-4 border border-dashed border-dark-border rounded-lg bg-dark-bg/50">
               <p className="text-sm text-gray-400 mb-3">Add additional tables if LLM missed any:</p>
               <div className="flex gap-2">
-                <Input
-                  type="text"
-                  placeholder="New table name..."
-                  value={newTableName}
-                  onChange={(e) => setNewTableName(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleAddTable();
-                    }
-                  }}
+                <Select
+                  value={selectedNewTable}
+                  onChange={(e) => setSelectedNewTable(e.target.value)}
+                  options={availableTables}
+                  placeholder="Select table to add..."
                   className="flex-1"
                 />
                 <Button
                   variant="secondary"
                   onClick={handleAddTable}
-                  disabled={!newTableName.trim()}
+                  disabled={!selectedNewTable}
+                  className="justify-center"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Table
@@ -254,7 +286,7 @@ export function EntityExtraction({
               variant="ghost"
               size="sm"
               isLoading={isExtracting}
-              className="w-full"
+              className="w-full justify-center"
             >
               <Sparkles className="w-4 h-4 mr-2" />
               Re-run Entity Extraction
