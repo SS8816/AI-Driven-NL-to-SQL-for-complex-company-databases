@@ -183,3 +183,96 @@ class UserQueryHistory(BaseModel):
             }
         }
     }
+
+
+class CTASSchemaColumn(BaseModel):
+    """Column information from CTAS schema"""
+    name: str = Field(..., description="Column name")
+    type: str = Field(..., description="Column data type")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "name": "iso_country_code",
+                "type": "varchar"
+            }
+        }
+    }
+
+
+class CTASSchemaResponse(BaseModel):
+    """Response containing CTAS table schema"""
+    table_name: str = Field(..., description="CTAS table name")
+    database: str = Field(..., description="Database name")
+    columns: List[CTASSchemaColumn] = Field(..., description="Table columns")
+    has_country_column: bool = Field(..., description="Whether table has iso_country_code column")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "table_name": "rule_wbl039_fastmap_20250117_143052",
+                "database": "fastmap_prod2_v2_13_base",
+                "columns": [
+                    {"name": "id", "type": "varchar"},
+                    {"name": "iso_country_code", "type": "varchar"}
+                ],
+                "has_country_column": True
+            }
+        }
+    }
+
+
+class CTASQueryRequest(BaseModel):
+    """Request to execute custom query on CTAS table"""
+    custom_sql: str = Field(..., min_length=1, description="Custom SQL query (SELECT only)")
+    limit: Optional[int] = Field(1000, ge=1, le=10000, description="Maximum rows to return")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "custom_sql": "SELECT * FROM {table} WHERE iso_country_code = 'USA'",
+                "limit": 1000
+            }
+        }
+    }
+
+
+class CTASQueryResponse(BaseModel):
+    """Response from CTAS custom query execution"""
+    success: bool = Field(..., description="Whether query succeeded")
+    columns: Optional[List[str]] = Field(None, description="Column names")
+    rows: Optional[List[Dict[str, Any]]] = Field(None, description="Query result rows")
+    row_count: int = Field(default=0, description="Number of rows returned")
+    execution_time_ms: int = Field(default=0, description="Query execution time in milliseconds")
+    error: Optional[str] = Field(None, description="Error message if failed")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "success": True,
+                "columns": ["id", "iso_country_code", "geometry_wkt"],
+                "rows": [
+                    {"id": "123", "iso_country_code": "USA", "geometry_wkt": "POINT(...)"}
+                ],
+                "row_count": 1,
+                "execution_time_ms": 1500
+            }
+        }
+    }
+
+
+class CTASCountriesResponse(BaseModel):
+    """Response containing distinct countries from CTAS table"""
+    table_name: str = Field(..., description="CTAS table name")
+    countries: List[str] = Field(..., description="List of distinct country codes")
+    country_count: int = Field(..., description="Number of distinct countries")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "table_name": "rule_wbl039_fastmap_20250117_143052",
+                "countries": ["USA", "DEU", "GBR", "FRA"],
+                "country_count": 4
+            }
+        }
+    }

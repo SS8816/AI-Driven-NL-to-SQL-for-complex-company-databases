@@ -7,11 +7,13 @@ import {
   MapPin,
   FileJson,
   FileSpreadsheet,
+  Search,
 } from 'lucide-react';
 import { QueryResult } from '@/types';
 import { Card, Button, Badge } from '@/components/common';
 import { formatNumber, formatExecutionTime, formatSQL } from '@/utils/format';
 import { resultsApi } from '@/api';
+import { CTASQueryInterface } from './CTASQueryInterface';
 import toast from 'react-hot-toast';
 
 interface ResultsDisplayProps {
@@ -21,11 +23,24 @@ interface ResultsDisplayProps {
 
 export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
   const [isExporting, setIsExporting] = useState(false);
+  const [showCTASQuery, setShowCTASQuery] = useState(false);
+
+  // Extract database from CTAS table name
+  const database = result.ctas_table_name?.split('.')[0] || 'unknown';
+
+  // Check if result has geometry/WKT columns
+  const hasGeometry = result.columns?.some(col =>
+    col.toLowerCase().includes('wkt') ||
+    col.toLowerCase().includes('geometry') ||
+    col.toLowerCase().includes('geom')
+  ) || false;
 
   const handleExport = async (format: 'csv' | 'json' | 'geojson') => {
+    if (!result.ctas_table_name) return;
+
     setIsExporting(true);
     try {
-      await resultsApi.export(result.ctas_table_name, result.database, format);
+      await resultsApi.export(result.ctas_table_name, database, format);
       toast.success(`Exported as ${format.toUpperCase()}`);
     } catch (error: any) {
       toast.error(error.message || 'Export failed');
@@ -55,7 +70,7 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
               <span className="text-xs">Execution Time</span>
             </div>
             <div className="text-2xl font-bold text-gray-100">
-              {formatExecutionTime(result.execution_time_seconds)}
+              {formatExecutionTime(result.execution_time_ms / 1000)}
             </div>
           </div>
 
@@ -75,8 +90,8 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
               <span className="text-xs">Geometry</span>
             </div>
             <div className="text-lg font-bold">
-              <Badge variant={result.has_geometry ? 'success' : 'default'}>
-                {result.has_geometry ? 'Yes' : 'No'}
+              <Badge variant={hasGeometry ? 'success' : 'default'}>
+                {hasGeometry ? 'Yes' : 'No'}
               </Badge>
             </div>
           </div>
@@ -104,7 +119,7 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
             Export JSON
           </Button>
 
-          {result.has_geometry && (
+          {hasGeometry && (
             <>
               <Button
                 onClick={() => handleExport('geojson')}
@@ -123,6 +138,17 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
                 </Button>
               )}
             </>
+          )}
+
+          {result.ctas_table_name && (
+            <Button
+              onClick={() => setShowCTASQuery(!showCTASQuery)}
+              variant={showCTASQuery ? 'primary' : 'secondary'}
+              size="sm"
+            >
+              <Search className="w-4 h-4 mr-2" />
+              {showCTASQuery ? 'Hide' : 'Query'} CTAS Table
+            </Button>
           )}
         </div>
       </Card>
@@ -156,7 +182,7 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-dark-border">
-                  {result.column_names?.map((col) => (
+                  {result.columns?.map((col) => (
                     <th
                       key={col}
                       className="text-left p-3 font-medium text-gray-300"
@@ -172,7 +198,7 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
                     key={idx}
                     className="border-b border-dark-border hover:bg-dark-hover"
                   >
-                    {result.column_names?.map((col) => (
+                    {result.columns?.map((col) => (
                       <td key={col} className="p-3 text-gray-400 font-mono text-xs">
                         {String(row[col] ?? 'NULL')}
                       </td>
@@ -183,6 +209,14 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
             </table>
           </div>
         </Card>
+      )}
+
+      {/* CTAS Query Interface */}
+      {showCTASQuery && result.ctas_table_name && (
+        <CTASQueryInterface
+          ctasTableName={result.ctas_table_name}
+          database={database}
+        />
       )}
     </div>
   );

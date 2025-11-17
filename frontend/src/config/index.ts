@@ -61,6 +61,9 @@ export const endpoints = {
   },
   results: {
     export: (ctasTableName: string) => `/results/${ctasTableName}/export`,
+    schema: (ctasTableName: string) => `/results/${ctasTableName}/schema`,
+    countries: (ctasTableName: string) => `/results/${ctasTableName}/countries`,
+    query: (ctasTableName: string) => `/results/${ctasTableName}/query`,
   },
   cache: {
     stats: '/cache/stats',

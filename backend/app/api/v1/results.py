@@ -4,18 +4,213 @@ Handles CTAS result querying and data export
 """
 
 from typing import Literal, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Response, Body
 from fastapi.responses import StreamingResponse
 import io
 
 from app.models.auth import UserInfo
+from app.models.query import (
+    CTASSchemaResponse,
+    CTASQueryRequest,
+    CTASQueryResponse,
+    CTASCountriesResponse
+)
 from app.services.export_service import export_service
-from app.utils.errors import ExportError
+from app.services.results_service import results_service
+from app.utils.errors import ExportError, QueryExecutionError, ValidationError
 from app.utils.logger import app_logger
 from app.dependencies import get_current_user
 
 
 router = APIRouter(prefix="/results", tags=["Results"])
+
+
+@router.get("/{ctas_table_name}/schema", response_model=CTASSchemaResponse)
+async def get_ctas_schema(
+    ctas_table_name: str,
+    database: str = Query(..., description="Database name"),
+    user: UserInfo = Depends(get_current_user)
+):
+    """
+    Get schema information for a CTAS table
+
+    Returns table columns, types, and whether it has iso_country_code column
+
+    Requires: Authentication
+
+    Args:
+        ctas_table_name: CTAS table name
+        database: Database name
+        user: Authenticated user (injected)
+
+    Returns:
+        CTASSchemaResponse with table schema
+
+    Raises:
+        HTTPException 500: If schema retrieval fails
+    """
+    try:
+        app_logger.info(
+            "get_schema_requested",
+            username=user.username,
+            ctas_table=ctas_table_name,
+            database=database
+        )
+
+        schema = await results_service.get_ctas_schema(ctas_table_name, database)
+
+        return schema
+
+    except QueryExecutionError as e:
+        app_logger.error(
+            "get_schema_error",
+            username=user.username,
+            ctas_table=ctas_table_name,
+            error=str(e)
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "message": "Failed to retrieve schema",
+                "error": str(e)
+            }
+        )
+
+
+@router.get("/{ctas_table_name}/countries", response_model=CTASCountriesResponse)
+async def get_ctas_countries(
+    ctas_table_name: str,
+    database: str = Query(..., description="Database name"),
+    user: UserInfo = Depends(get_current_user)
+):
+    """
+    Get distinct countries from CTAS table
+
+    Returns list of ISO 3166-1 alpha-3 country codes found in the table
+
+    Requires: Authentication
+
+    Args:
+        ctas_table_name: CTAS table name
+        database: Database name
+        user: Authenticated user (injected)
+
+    Returns:
+        CTASCountriesResponse with distinct country codes
+
+    Raises:
+        HTTPException 500: If query fails
+    """
+    try:
+        app_logger.info(
+            "get_countries_requested",
+            username=user.username,
+            ctas_table=ctas_table_name,
+            database=database
+        )
+
+        countries = await results_service.get_distinct_countries(ctas_table_name, database)
+
+        return countries
+
+    except QueryExecutionError as e:
+        app_logger.error(
+            "get_countries_error",
+            username=user.username,
+            ctas_table=ctas_table_name,
+            error=str(e)
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "message": "Failed to retrieve countries",
+                "error": str(e)
+            }
+        )
+
+
+@router.post("/{ctas_table_name}/query", response_model=CTASQueryResponse)
+async def query_ctas_table(
+    ctas_table_name: str,
+    database: str = Query(..., description="Database name"),
+    request: CTASQueryRequest = Body(...),
+    user: UserInfo = Depends(get_current_user)
+):
+    """
+    Execute custom SQL query on CTAS table
+
+    Allows running SELECT queries with custom filters and conditions.
+    Only SELECT statements are allowed. Dangerous keywords are blocked.
+
+    Use {table} as placeholder for the table name in your SQL.
+
+    Requires: Authentication
+
+    Args:
+        ctas_table_name: CTAS table name
+        database: Database name
+        request: Query request with custom SQL
+        user: Authenticated user (injected)
+
+    Returns:
+        CTASQueryResponse with query results
+
+    Raises:
+        HTTPException 400: If SQL is invalid or contains dangerous keywords
+        HTTPException 500: If query execution fails
+    """
+    try:
+        app_logger.info(
+            "custom_query_requested",
+            username=user.username,
+            ctas_table=ctas_table_name,
+            database=database,
+            limit=request.limit
+        )
+
+        result = await results_service.execute_custom_query(
+            ctas_table_name=ctas_table_name,
+            database=database,
+            custom_sql=request.custom_sql,
+            limit=request.limit or 1000
+        )
+
+        return result
+
+    except ValidationError as e:
+        app_logger.warning(
+            "custom_query_validation_error",
+            username=user.username,
+            ctas_table=ctas_table_name,
+            error=str(e)
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "Invalid SQL query",
+                "error": str(e),
+                "error_code": "VALIDATION_ERROR"
+            }
+        )
+
+    except QueryExecutionError as e:
+        app_logger.error(
+            "custom_query_error",
+            username=user.username,
+            ctas_table=ctas_table_name,
+            error=str(e)
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "message": "Query execution failed",
+                "error": str(e)
+            }
+        )
 
 
 @router.get("/{ctas_table_name}/export")

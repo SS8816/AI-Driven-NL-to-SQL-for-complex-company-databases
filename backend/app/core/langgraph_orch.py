@@ -10,6 +10,8 @@ import io
 import boto3
 from urllib.parse import urlparse
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
+import threading
 
 
 from langchain_community.vectorstores import FAISS
@@ -23,6 +25,7 @@ from app.core.prompts import (
     create_syntax_validation_prompt
 )
 from app.core.config import Config
+from app.config import settings
 from app.core.models import QueryRequest
 from app.core.athena_client import AthenaClient, AthenaError
 from app.core.logger_config import log_llm_interaction, log_query_execution
@@ -31,6 +34,33 @@ from app.core.ctas_utils import generate_ctas_name
 
 
 #Helper Functions
+
+def _run_async_in_thread(coro):
+    """
+    Run an async coroutine in a new thread with a new event loop.
+    This avoids 'asyncio.run() cannot be called from a running event loop' error.
+    """
+    result = [None]
+    exception = [None]
+
+    def run_in_thread():
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result[0] = loop.run_until_complete(coro)
+            loop.close()
+        except Exception as e:
+            exception[0] = e
+
+    thread = threading.Thread(target=run_in_thread)
+    thread.start()
+    thread.join()
+
+    if exception[0]:
+        raise exception[0]
+
+    return result[0]
+
 
 def _format_sql_query(raw_response: str) -> str:
     """Clean and format SQL response from LLM."""
@@ -241,10 +271,10 @@ def generate_sql_node(state: GraphState) -> Dict:
     log_llm_interaction("generate_sql_start", None, None, state["nl_query"])
     
     azure_config = {
-        "api_key": os.getenv("AZURE_OPENAI_API_KEY"),
-        "azure_endpoint": os.getenv("AZURE_OPENAI_ENDPOINT"),
-        "azure_deployment": os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-        "api_version": os.getenv("AZURE_OPENAI_API_VERSION")
+        "api_key": settings.AZURE_OPENAI_API_KEY,
+        "azure_endpoint": settings.AZURE_OPENAI_ENDPOINT,
+        "azure_deployment": settings.AZURE_OPENAI_DEPLOYMENT,
+        "api_version": settings.AZURE_OPENAI_API_VERSION
     }
     
     prompt = create_sql_generation_prompt(
@@ -705,10 +735,10 @@ def validate_sql_node(state: GraphState) -> Dict:
     print("\n   Calling LLM for syntax validation...")
     
     azure_config = {
-        "api_key": os.getenv("AZURE_OPENAI_API_KEY"),
-        "azure_endpoint": os.getenv("AZURE_OPENAI_ENDPOINT"),
-        "azure_deployment": os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-        "api_version": os.getenv("AZURE_OPENAI_API_VERSION")
+        "api_key": settings.AZURE_OPENAI_API_KEY,
+        "azure_endpoint": settings.AZURE_OPENAI_ENDPOINT,
+        "azure_deployment": settings.AZURE_OPENAI_DEPLOYMENT,
+        "api_version": settings.AZURE_OPENAI_API_VERSION
     }
     
     syntax_prompt = create_syntax_validation_prompt(
@@ -830,7 +860,7 @@ CREATE TABLE {ctas_table_name} AS
         )
         
         # Execute CTAS creation
-        ctas_result = asyncio.run(athena_client.execute_query(ctas_request))
+        ctas_result = _run_async_in_thread(athena_client.execute_query(ctas_request))
         
         if isinstance(ctas_result, str):
             # Timeout
@@ -861,7 +891,7 @@ CREATE TABLE {ctas_table_name} AS
             max_rows=1000
         )
         
-        preview_result = asyncio.run(athena_client.execute_query(preview_request))
+        preview_result = _run_async_in_thread(athena_client.execute_query(preview_request))
         
         if isinstance(preview_result, str):
             error_msg = f"Preview query timed out. Execution ID: {preview_result}"
@@ -939,10 +969,10 @@ def fix_sql_node(state: GraphState) -> Dict:
     log_llm_interaction("fix_sql_start", None, None, f"Retry {retry_num}: {state['error_message'][:200]}")
     
     azure_config = {
-        "api_key": os.getenv("AZURE_OPENAI_API_KEY"),
-        "azure_endpoint": os.getenv("AZURE_OPENAI_ENDPOINT"),
-        "azure_deployment": os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-        "api_version": os.getenv("AZURE_OPENAI_API_VERSION")
+        "api_key": settings.AZURE_OPENAI_API_KEY,
+        "azure_endpoint": settings.AZURE_OPENAI_ENDPOINT,
+        "azure_deployment": settings.AZURE_OPENAI_DEPLOYMENT,
+        "api_version": settings.AZURE_OPENAI_API_VERSION
     }
     
     
@@ -1110,7 +1140,7 @@ def run_orchestrator(
                 max_rows=1000
             )
             
-            preview_result = asyncio.run(athena_client.execute_query(preview_request))
+            preview_result = _run_async_in_thread(athena_client.execute_query(preview_request))
             df = pd.DataFrame(preview_result.rows, columns=preview_result.columns)
             
             yield {
