@@ -25,7 +25,7 @@ export function QueryBuilderPage() {
     useState<EntityExtractionResult | null>(null);
 
   // Step 3: Execution
-  const [executionMode, setExecutionMode] = useState<'sync' | 'async'>('sync');
+  const [cacheOption, setCacheOption] = useState<'use_cache' | 'use_sql' | 'regenerate'>('use_cache');
   const [isExecuting, setIsExecuting] = useState(false);
   const [progressSteps, setProgressSteps] = useState<ProgressStep[]>([]);
   const [currentStep, setCurrentStep] = useState<string | undefined>();
@@ -56,7 +56,8 @@ export function QueryBuilderPage() {
       nl_query: nlQuery,
       schema_name: selectedSchema!,
       selected_tables: extractedEntities.tables,
-      execution_mode: executionMode,
+      execution_mode: 'sync', // Always sync for now
+      // Cache handling will be done backend based on rule_category
     };
 
     setIsExecuting(true);
@@ -209,20 +210,32 @@ export function QueryBuilderPage() {
 
       {/* Step 3: Query Execution */}
       {extractedEntities && (
-        <Card title="Execute Query" subtitle="Configure execution settings and run">
+        <Card title="Execute Query" subtitle="Choose cache strategy and execute">
           <div className="space-y-4">
             <Select
-              label="Execution Mode"
-              value={executionMode}
-              onChange={(e) => setExecutionMode(e.target.value as 'sync' | 'async')}
+              label="Cache Strategy"
+              value={cacheOption}
+              onChange={(e) => setCacheOption(e.target.value as 'use_cache' | 'use_sql' | 'regenerate')}
               options={[
-                { value: 'sync', label: 'Synchronous - Wait for results' },
-                { value: 'async', label: 'Asynchronous - Run in background' },
+                {
+                  value: 'use_cache',
+                  label: '1. Use Cached Result (if available) - Fastest'
+                },
+                {
+                  value: 'use_sql',
+                  label: '2. Use Cached SQL & Re-run on Latest Data'
+                },
+                {
+                  value: 'regenerate',
+                  label: '3. Regenerate SQL from Scratch - Slowest'
+                },
               ]}
               helperText={
-                executionMode === 'sync'
-                  ? 'Query will run and wait for results'
-                  : 'Query will run in the background'
+                cacheOption === 'use_cache'
+                  ? 'Uses existing CTAS table if cache hit for this rule category'
+                  : cacheOption === 'use_sql'
+                  ? 'Reuses cached SQL query but runs on latest data'
+                  : 'Full regeneration: LLM generates new SQL, runs, and caches'
               }
             />
 
