@@ -23,6 +23,7 @@ from app.core.prompts import (
     create_syntax_validation_prompt
 )
 from app.core.config import Config
+from app.config import settings
 from app.core.models import QueryRequest
 from app.core.athena_client import AthenaClient, AthenaError
 from app.core.logger_config import log_llm_interaction, log_query_execution
@@ -241,10 +242,10 @@ def generate_sql_node(state: GraphState) -> Dict:
     log_llm_interaction("generate_sql_start", None, None, state["nl_query"])
     
     azure_config = {
-        "api_key": os.getenv("AZURE_OPENAI_API_KEY"),
-        "azure_endpoint": os.getenv("AZURE_OPENAI_ENDPOINT"),
-        "azure_deployment": os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-        "api_version": os.getenv("AZURE_OPENAI_API_VERSION")
+        "api_key": settings.AZURE_OPENAI_API_KEY,
+        "azure_endpoint": settings.AZURE_OPENAI_ENDPOINT,
+        "azure_deployment": settings.AZURE_OPENAI_DEPLOYMENT,
+        "api_version": settings.AZURE_OPENAI_API_VERSION
     }
     
     prompt = create_sql_generation_prompt(
@@ -705,10 +706,10 @@ def validate_sql_node(state: GraphState) -> Dict:
     print("\n   Calling LLM for syntax validation...")
     
     azure_config = {
-        "api_key": os.getenv("AZURE_OPENAI_API_KEY"),
-        "azure_endpoint": os.getenv("AZURE_OPENAI_ENDPOINT"),
-        "azure_deployment": os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-        "api_version": os.getenv("AZURE_OPENAI_API_VERSION")
+        "api_key": settings.AZURE_OPENAI_API_KEY,
+        "azure_endpoint": settings.AZURE_OPENAI_ENDPOINT,
+        "azure_deployment": settings.AZURE_OPENAI_DEPLOYMENT,
+        "api_version": settings.AZURE_OPENAI_API_VERSION
     }
     
     syntax_prompt = create_syntax_validation_prompt(
@@ -939,10 +940,10 @@ def fix_sql_node(state: GraphState) -> Dict:
     log_llm_interaction("fix_sql_start", None, None, f"Retry {retry_num}: {state['error_message'][:200]}")
     
     azure_config = {
-        "api_key": os.getenv("AZURE_OPENAI_API_KEY"),
-        "azure_endpoint": os.getenv("AZURE_OPENAI_ENDPOINT"),
-        "azure_deployment": os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-        "api_version": os.getenv("AZURE_OPENAI_API_VERSION")
+        "api_key": settings.AZURE_OPENAI_API_KEY,
+        "azure_endpoint": settings.AZURE_OPENAI_ENDPOINT,
+        "azure_deployment": settings.AZURE_OPENAI_DEPLOYMENT,
+        "api_version": settings.AZURE_OPENAI_API_VERSION
     }
     
     
