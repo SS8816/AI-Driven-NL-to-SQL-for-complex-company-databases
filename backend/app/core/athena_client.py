@@ -7,8 +7,8 @@ from typing import Optional, Union
 import boto3
 from botocore.exceptions import ClientError
 
-from config import Config
-from models import DatabaseInfo, QueryRequest, QueryResult, QueryState, QueryStatus, TableInfo
+from app.core.config import Config
+from app.core.models import DatabaseInfo, QueryRequest, QueryResult, QueryState, QueryStatus, TableInfo
 
 # Set up logging
 logger = logging.getLogger(__name__)

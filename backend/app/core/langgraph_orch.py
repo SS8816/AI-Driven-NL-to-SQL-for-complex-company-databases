@@ -15,19 +15,19 @@ from pathlib import Path
 from langchain_community.vectorstores import FAISS
 from langchain_openai import AzureOpenAIEmbeddings
 
-from prompts import (
-    create_sql_generation_prompt, 
-    create_sql_fixing_prompt,  
+from app.core.prompts import (
+    create_sql_generation_prompt,
+    create_sql_fixing_prompt,
     create_rag_sql_fixing_prompt,
-    create_function_validation_prompt,  
-    create_syntax_validation_prompt       
+    create_function_validation_prompt,
+    create_syntax_validation_prompt
 )
-from config import Config
-from models import QueryRequest
-from athena_client import AthenaClient, AthenaError
-from logger_config import log_llm_interaction, log_query_execution
-from cache_manager import CacheManager
-from ctas_utils import generate_ctas_name
+from app.core.config import Config
+from app.core.models import QueryRequest
+from app.core.athena_client import AthenaClient, AthenaError
+from app.core.logger_config import log_llm_interaction, log_query_execution
+from app.core.cache_manager import CacheManager
+from app.core.ctas_utils import generate_ctas_name
 
 
 #Helper Functions
