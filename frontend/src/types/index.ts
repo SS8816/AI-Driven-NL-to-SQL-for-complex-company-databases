@@ -72,16 +72,21 @@ export interface QueryProgress {
 }
 
 export interface QueryResult {
-  ctas_table_name: string;
-  database: string;
-  row_count: number;
-  execution_time_seconds: number;
-  sql: string;
+  success: boolean;
+  sql: string | null;
+  ctas_table_name: string | null;
+  execution_id: string | null;
+  s3_path: string | null;
   preview_data?: Array<Record<string, any>>;
-  column_names?: string[];
-  has_geometry: boolean;
+  columns?: string[];
+  row_count: number;
+  total_rows?: number;
+  bytes_scanned: number;
+  execution_time_ms: number;
+  cache_hit: boolean;
+  cache_age_hours?: number;
   error?: string;
-  status: 'success' | 'failed' | 'running';
+  rag_used: boolean;
 }
 
 export interface QueryHistoryItem {

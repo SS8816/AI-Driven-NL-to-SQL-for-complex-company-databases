@@ -22,10 +22,22 @@ interface ResultsDisplayProps {
 export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
   const [isExporting, setIsExporting] = useState(false);
 
+  // Extract database from CTAS table name
+  const database = result.ctas_table_name?.split('.')[0] || 'unknown';
+
+  // Check if result has geometry/WKT columns
+  const hasGeometry = result.columns?.some(col =>
+    col.toLowerCase().includes('wkt') ||
+    col.toLowerCase().includes('geometry') ||
+    col.toLowerCase().includes('geom')
+  ) || false;
+
   const handleExport = async (format: 'csv' | 'json' | 'geojson') => {
+    if (!result.ctas_table_name) return;
+
     setIsExporting(true);
     try {
-      await resultsApi.export(result.ctas_table_name, result.database, format);
+      await resultsApi.export(result.ctas_table_name, database, format);
       toast.success(`Exported as ${format.toUpperCase()}`);
     } catch (error: any) {
       toast.error(error.message || 'Export failed');
@@ -55,7 +67,7 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
               <span className="text-xs">Execution Time</span>
             </div>
             <div className="text-2xl font-bold text-gray-100">
-              {formatExecutionTime(result.execution_time_seconds)}
+              {formatExecutionTime(result.execution_time_ms / 1000)}
             </div>
           </div>
 
@@ -75,8 +87,8 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
               <span className="text-xs">Geometry</span>
             </div>
             <div className="text-lg font-bold">
-              <Badge variant={result.has_geometry ? 'success' : 'default'}>
-                {result.has_geometry ? 'Yes' : 'No'}
+              <Badge variant={hasGeometry ? 'success' : 'default'}>
+                {hasGeometry ? 'Yes' : 'No'}
               </Badge>
             </div>
           </div>
@@ -156,7 +168,7 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-dark-border">
-                  {result.column_names?.map((col) => (
+                  {result.columns?.map((col) => (
                     <th
                       key={col}
                       className="text-left p-3 font-medium text-gray-300"
@@ -172,7 +184,7 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
                     key={idx}
                     className="border-b border-dark-border hover:bg-dark-hover"
                   >
-                    {result.column_names?.map((col) => (
+                    {result.columns?.map((col) => (
                       <td key={col} className="p-3 text-gray-400 font-mono text-xs">
                         {String(row[col] ?? 'NULL')}
                       </td>
