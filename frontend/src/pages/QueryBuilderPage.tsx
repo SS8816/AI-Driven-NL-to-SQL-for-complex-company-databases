@@ -4,7 +4,7 @@ import { EntityExtraction } from '@/components/schema/EntityExtraction';
 import { QueryProgress, ProgressStep } from '@/components/query/QueryProgress';
 import { ResultsDisplay } from '@/components/query/ResultsDisplay';
 import { MapView } from '@/components/map/MapView';
-import { Card, EmptyState, Textarea, Select, Button } from '@/components/common';
+import { Card, EmptyState, Textarea, Input, Select, Button } from '@/components/common';
 import { useAppStore } from '@/stores/appStore';
 import { useAuthStore } from '@/stores/authStore';
 import { QueryWebSocket } from '@/api';
@@ -187,18 +187,12 @@ export function QueryBuilderPage() {
             helperText="Describe what data you want to find using plain English"
           />
 
-          <Select
+          <Input
             label="Rule Category"
+            type="text"
             value={ruleCategory}
             onChange={(e) => setRuleCategory(e.target.value)}
-            options={[
-              { value: '', label: 'Select a rule category...' },
-              { value: 'WBL039', label: 'WBL039 - Geospatial Violations' },
-              { value: 'SPEED001', label: 'SPEED001 - Speed Violations' },
-              { value: 'ZONE002', label: 'ZONE002 - Zone Violations' },
-              { value: 'CUSTOM', label: 'CUSTOM - Custom Query' },
-            ]}
-            placeholder="Select rule category..."
+            placeholder="e.g., WBL039, SPEED001, ZONE002"
             helperText="Rule category is used for caching (case-insensitive: WBL039 = wbl039)"
           />
         </div>
