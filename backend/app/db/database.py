@@ -88,12 +88,9 @@ class Database:
             app_logger.error("database_init_error", error=str(e))
             raise
 
-    async def get_connection(self) -> aiosqlite.Connection:
-        """Get database connection"""
-        if not self._initialized:
-            await self.initialize()
-
-        return await aiosqlite.connect(self.db_path)
+    def get_connection(self):
+        """Get database connection (context manager)"""
+        return aiosqlite.connect(self.db_path)
 
 
 # Global database instance

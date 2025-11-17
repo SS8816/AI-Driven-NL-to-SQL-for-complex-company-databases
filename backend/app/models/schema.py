@@ -80,19 +80,30 @@ class SchemaInfo(BaseModel):
     }
 
 
+class SchemaListItem(BaseModel):
+    """Single schema in list"""
+    name: str = Field(..., description="Schema name")
+    database: str = Field(..., description="Database name")
+    table_count: int = Field(..., description="Number of tables in schema")
+    description: Optional[str] = Field(None, description="Schema description")
+
+
 class SchemaListResponse(BaseModel):
     """List of available schemas"""
-    schemas: List[str] = Field(..., description="Available schema names")
+    schemas: List[SchemaListItem] = Field(..., description="Available schemas")
     count: int = Field(..., description="Number of schemas")
 
     model_config = {
         "json_schema_extra": {
             "example": {
                 "schemas": [
-                    "fastmap_prod2_v2_13_base",
-                    "fastmap_violations_prod_v4_base"
+                    {
+                        "name": "fastmap_prod2_v2_13_base",
+                        "database": "awsdatacatalog",
+                        "table_count": 12
+                    }
                 ],
-                "count": 2
+                "count": 1
             }
         }
     }
