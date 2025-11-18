@@ -55,6 +55,13 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
     loadSchema();
   }, [ctasTableName, database]);
 
+  // Auto-switch to custom tab if country column not available
+  useEffect(() => {
+    if (schema && !schema.has_country_column && activeTab === 'country') {
+      setActiveTab('custom');
+    }
+  }, [schema]);
+
   // Load countries when country tab is activated
   useEffect(() => {
     if (activeTab === 'country' && schema?.has_country_column && countries.length === 0) {
@@ -92,11 +99,23 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
       return;
     }
 
+    // Find the actual country column name from schema
+    const countryColumn = schema?.columns.find(col =>
+      col.name.toLowerCase().endsWith('country_code') ||
+      col.name.toLowerCase().endsWith('_country_code') ||
+      col.name.toLowerCase() === 'iso_country_code'
+    )?.name;
+
+    if (!countryColumn) {
+      toast.error('Country column not found in schema');
+      return;
+    }
+
     try {
       setIsExecuting(true);
       setQueryResult(null);
 
-      const sql = `SELECT * FROM {table} WHERE iso_country_code = '${selectedCountry}' LIMIT ${limit}`;
+      const sql = `SELECT * FROM {table} WHERE "${countryColumn}" = '${selectedCountry}' LIMIT ${limit}`;
 
       const result = await resultsApi.executeQuery(ctasTableName, database, {
         custom_sql: sql,

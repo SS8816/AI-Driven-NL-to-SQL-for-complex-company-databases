@@ -94,6 +94,15 @@ class ResultsService:
                     (list(row.values())[1] if row and len(row.values()) > 1 else "")
                 )
 
+                # CRITICAL FIX: Athena's DESCRIBE returns tab-separated values in a single column
+                # Format: "column_name\tdata_type\tcomment"
+                # We need to split this if col_type is empty and col_name contains tabs
+                if '\t' in str(col_name) and not col_type:
+                    parts = str(col_name).split('\t')
+                    col_name = parts[0].strip() if len(parts) > 0 else ""
+                    col_type = parts[1].strip() if len(parts) > 1 else ""
+                    # parts[2] would be comment, but we don't need it
+
                 app_logger.info(
                     "describe_row_parsed",
                     col_name=col_name,
