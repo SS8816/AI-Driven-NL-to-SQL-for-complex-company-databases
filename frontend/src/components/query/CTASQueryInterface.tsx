@@ -276,14 +276,9 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
                       value={selectedCountry}
                       onChange={(e) => setSelectedCountry(e.target.value)}
                       disabled={isExecuting}
-                    >
-                      <option value="">-- Select a country --</option>
-                      {countries.map((code) => (
-                        <option key={code} value={code}>
-                          {code}
-                        </option>
-                      ))}
-                    </Select>
+                      placeholder="-- Select a country --"
+                      options={countries.map(code => ({ value: code, label: code }))}
+                    />
                     <p className="mt-2 text-sm text-gray-500">
                       {countries.length} countries available in this table
                     </p>
@@ -297,13 +292,14 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
                       value={limit.toString()}
                       onChange={(e) => setLimit(parseInt(e.target.value))}
                       disabled={isExecuting}
-                    >
-                      <option value="100">100 rows</option>
-                      <option value="500">500 rows</option>
-                      <option value="1000">1,000 rows</option>
-                      <option value="5000">5,000 rows</option>
-                      <option value="10000">10,000 rows</option>
-                    </Select>
+                      options={[
+                        { value: '100', label: '100 rows' },
+                        { value: '500', label: '500 rows' },
+                        { value: '1000', label: '1,000 rows' },
+                        { value: '5000', label: '5,000 rows' },
+                        { value: '10000', label: '10,000 rows' },
+                      ]}
+                    />
                   </div>
 
                   <Button
@@ -347,13 +343,14 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
                 value={limit.toString()}
                 onChange={(e) => setLimit(parseInt(e.target.value))}
                 disabled={isExecuting}
-              >
-                <option value="100">100 rows</option>
-                <option value="500">500 rows</option>
-                <option value="1000">1,000 rows</option>
-                <option value="5000">5,000 rows</option>
-                <option value="10000">10,000 rows</option>
-              </Select>
+                options={[
+                  { value: '100', label: '100 rows' },
+                  { value: '500', label: '500 rows' },
+                  { value: '1000', label: '1,000 rows' },
+                  { value: '5000', label: '5,000 rows' },
+                  { value: '10000', label: '10,000 rows' },
+                ]}
+              />
             </div>
 
             <Button
