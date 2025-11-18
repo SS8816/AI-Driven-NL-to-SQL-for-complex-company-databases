@@ -64,6 +64,16 @@ class ResultsService:
 
             result = await self._execute_query(database, query)
 
+            # DEBUG: Log the DESCRIBE result structure
+            app_logger.info(
+                "describe_result_debug",
+                ctas_table=ctas_table_name,
+                result_columns=result.columns,
+                row_count=len(result.rows),
+                first_row_keys=list(result.rows[0].keys()) if result.rows else [],
+                first_row_values=list(result.rows[0].values()) if result.rows else []
+            )
+
             # Parse schema from DESCRIBE result
             columns = []
             has_country_column = False
@@ -74,18 +84,31 @@ class ResultsService:
                     row.get("col_name") or
                     row.get("column_name") or
                     row.get("field") or
-                    list(row.values())[0] if row else ""
+                    (list(row.values())[0] if row and len(row.values()) > 0 else "")
                 )
 
                 # Try different possible type keys
                 col_type = (
                     row.get("data_type") or
                     row.get("type") or
-                    list(row.values())[1] if len(row.values()) > 1 else ""
+                    (list(row.values())[1] if row and len(row.values()) > 1 else "")
+                )
+
+                app_logger.info(
+                    "describe_row_parsed",
+                    col_name=col_name,
+                    col_type=col_type,
+                    row_keys=list(row.keys())
                 )
 
                 # Skip partition info and empty rows
-                if not col_name or col_name.startswith("#") or not col_type:
+                if not col_name or str(col_name).startswith("#") or not col_type:
+                    app_logger.info(
+                        "describe_row_skipped",
+                        col_name=col_name,
+                        col_type=col_type,
+                        reason="empty or partition info"
+                    )
                     continue
 
                 columns.append(CTASSchemaColumn(name=str(col_name), type=str(col_type)))
