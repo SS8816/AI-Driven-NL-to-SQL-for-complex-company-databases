@@ -14,16 +14,17 @@ import { Card, Button, Badge } from '@/components/common';
 import { formatNumber, formatExecutionTime, formatSQL, truncateCell } from '@/utils/format';
 import { resultsApi } from '@/api';
 import { CTASQueryInterface } from './CTASQueryInterface';
+import { ResultsMapView } from '@/components/map';
 import toast from 'react-hot-toast';
 
 interface ResultsDisplayProps {
   result: QueryResult;
-  onViewOnMap?: () => void;
 }
 
-export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
+export function ResultsDisplay({ result }: ResultsDisplayProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [showCTASQuery, setShowCTASQuery] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   // Extract database from CTAS table name
   const database = result.ctas_table_name?.split('.')[0] || 'unknown';
@@ -131,12 +132,14 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
                 Export GeoJSON
               </Button>
 
-              {onViewOnMap && (
-                <Button onClick={onViewOnMap} variant="primary" size="sm">
-                  <MapPin className="w-4 h-4 mr-2" />
-                  View on Map
-                </Button>
-              )}
+              <Button
+                onClick={() => setShowMap(!showMap)}
+                variant={showMap ? 'primary' : 'secondary'}
+                size="sm"
+              >
+                <MapPin className="w-4 h-4 mr-2" />
+                {showMap ? 'Hide' : 'View on'} Map
+              </Button>
             </>
           )}
 
@@ -216,6 +219,15 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
         <CTASQueryInterface
           ctasTableName={result.ctas_table_name}
           database={database}
+        />
+      )}
+
+      {/* Map Visualization */}
+      {showMap && hasGeometry && result.preview_data && result.columns && (
+        <ResultsMapView
+          rows={result.preview_data}
+          columns={result.columns}
+          onClose={() => setShowMap(false)}
         />
       )}
     </div>

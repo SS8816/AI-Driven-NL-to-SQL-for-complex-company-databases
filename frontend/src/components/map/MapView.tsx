@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Map, { Source, Layer, Popup, MapRef } from 'react-map-gl';
 import type { GeoJSONSourceRaw } from 'react-map-gl';
+import mapboxgl from 'mapbox-gl';
 import { Card } from '@/components/common';
 import { config } from '@/config';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -21,16 +22,24 @@ export function MapView({ geojsonData, title = 'Map Visualization' }: MapViewPro
       const bounds = new mapboxgl.LngLatBounds();
 
       geojsonData.features.forEach((feature: any) => {
+        const extendBounds = (coords: any) => {
+          if (Array.isArray(coords[0])) {
+            coords.forEach(extendBounds);
+          } else {
+            bounds.extend(coords as [number, number]);
+          }
+        };
+
         if (feature.geometry.type === 'Point') {
           bounds.extend(feature.geometry.coordinates as [number, number]);
-        } else if (feature.geometry.type === 'Polygon') {
-          feature.geometry.coordinates[0].forEach((coord: [number, number]) => {
-            bounds.extend(coord);
-          });
+        } else if (feature.geometry.coordinates) {
+          extendBounds(feature.geometry.coordinates);
         }
       });
 
-      map.fitBounds(bounds, { padding: 50, duration: 1000 });
+      if (!bounds.isEmpty()) {
+        map.fitBounds(bounds, { padding: 50, duration: 1000 });
+      }
     }
   }, [geojsonData]);
 
@@ -77,7 +86,18 @@ export function MapView({ geojsonData, title = 'Map Visualization' }: MapViewPro
               filter={['==', ['geometry-type'], 'Point']}
             />
 
-            {/* Polygon layer */}
+            {/* LineString layer */}
+            <Layer
+              id="line-layer"
+              type="line"
+              paint={{
+                'line-color': '#FF3D00',
+                'line-width': 3,
+              }}
+              filter={['==', ['geometry-type'], 'LineString']}
+            />
+
+            {/* Polygon fill layer */}
             <Layer
               id="polygon-layer"
               type="fill"
@@ -97,6 +117,28 @@ export function MapView({ geojsonData, title = 'Map Visualization' }: MapViewPro
                 'line-width': 2,
               }}
               filter={['==', ['geometry-type'], 'Polygon']}
+            />
+
+            {/* MultiPolygon fill layer */}
+            <Layer
+              id="multipolygon-layer"
+              type="fill"
+              paint={{
+                'fill-color': '#FF3D00',
+                'fill-opacity': 0.3,
+              }}
+              filter={['==', ['geometry-type'], 'MultiPolygon']}
+            />
+
+            {/* MultiPolygon outline */}
+            <Layer
+              id="multipolygon-outline"
+              type="line"
+              paint={{
+                'line-color': '#FF3D00',
+                'line-width': 2,
+              }}
+              filter={['==', ['geometry-type'], 'MultiPolygon']}
             />
           </Source>
 
