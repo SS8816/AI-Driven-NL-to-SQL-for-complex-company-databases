@@ -72,9 +72,21 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
   const loadSchema = async () => {
     try {
       setIsLoadingSchema(true);
+      console.log('[CTASQueryInterface] Loading schema for:', { ctasTableName, database });
+
       const schemaData = await resultsApi.getSchema(ctasTableName, database);
+
+      console.log('[CTASQueryInterface] Schema loaded:', {
+        table_name: schemaData.table_name,
+        column_count: schemaData.columns?.length || 0,
+        has_country_column: schemaData.has_country_column,
+        first_5_columns: schemaData.columns?.slice(0, 5),
+        raw_response: schemaData
+      });
+
       setSchema(schemaData);
     } catch (error: any) {
+      console.error('[CTASQueryInterface] Schema load failed:', error);
       toast.error(error.message || 'Failed to load table schema');
     } finally {
       setIsLoadingSchema(false);
