@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Download,
   Code,
@@ -8,6 +8,8 @@ import {
   FileJson,
   FileSpreadsheet,
   Search,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { QueryResult } from '@/types';
 import { Card, Button, Badge } from '@/components/common';
@@ -25,9 +27,20 @@ export function ResultsDisplay({ result }: ResultsDisplayProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [showCTASQuery, setShowCTASQuery] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [showSQL, setShowSQL] = useState(false);
+
+  const ctasRef = useRef<HTMLDivElement>(null);
 
   // Extract database from CTAS table name
   const database = result.ctas_table_name?.split('.')[0] || 'unknown';
+
+  // Scroll to CTAS section when opened
+  useEffect(() => {
+    if (showCTASQuery && ctasRef.current) {
+      ctasRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [showCTASQuery]);
 
   // Check if result has geometry/WKT columns
   const hasGeometry = result.columns?.some(col =>
@@ -159,67 +172,95 @@ export function ResultsDisplay({ result }: ResultsDisplayProps) {
       {/* SQL Display */}
       <Card
         title="Generated SQL"
+        subtitle={showSQL ? "Click to collapse" : "Click to expand"}
         headerAction={
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              navigator.clipboard.writeText(result.sql);
-              toast.success('SQL copied to clipboard');
-            }}
-          >
-            <Code className="w-4 h-4 mr-2" />
-            Copy
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                navigator.clipboard.writeText(result.sql);
+                toast.success('SQL copied to clipboard');
+              }}
+            >
+              <Code className="w-4 h-4 mr-2" />
+              Copy
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSQL(!showSQL)}
+            >
+              {showSQL ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </Button>
+          </div>
         }
       >
-        <pre className="bg-dark-sidebar p-4 rounded-lg overflow-x-auto text-sm font-mono text-gray-300">
-          {formatSQL(result.sql)}
-        </pre>
+        {showSQL && (
+          <pre className="bg-dark-sidebar p-4 rounded-lg overflow-x-auto text-sm font-mono text-gray-300">
+            {formatSQL(result.sql)}
+          </pre>
+        )}
       </Card>
 
       {/* Data Preview */}
       {result.preview_data && result.preview_data.length > 0 && (
-        <Card title="Data Preview" subtitle={`First ${result.row_count} rows`}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-dark-border">
-                  {result.columns?.map((col) => (
-                    <th
-                      key={col}
-                      className="text-left p-3 font-medium text-gray-300 whitespace-nowrap"
-                    >
-                      {col}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {result.preview_data.slice(0, 1000).map((row, idx) => (
-                  <tr
-                    key={idx}
-                    className="border-b border-dark-border hover:bg-dark-hover"
-                  >
+        <Card
+          title="Data Preview"
+          subtitle={showPreview ? `Showing first 500 rows - Click to collapse` : `First 500 rows - Click to expand`}
+          headerAction={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowPreview(!showPreview)}
+            >
+              {showPreview ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </Button>
+          }
+        >
+          {showPreview && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-dark-border">
                     {result.columns?.map((col) => (
-                      <td key={col} className="p-3 text-gray-400 font-mono text-xs max-w-xs truncate" title={String(row[col] ?? 'NULL')}>
-                        {truncateCell(row[col], 100)}
-                      </td>
+                      <th
+                        key={col}
+                        className="text-left p-3 font-medium text-gray-300 whitespace-nowrap"
+                      >
+                        {col}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {result.preview_data.slice(0, 500).map((row, idx) => (
+                    <tr
+                      key={idx}
+                      className="border-b border-dark-border hover:bg-dark-hover"
+                    >
+                      {result.columns?.map((col) => (
+                        <td key={col} className="p-3 text-gray-400 font-mono text-xs max-w-xs truncate" title={String(row[col] ?? 'NULL')}>
+                          {truncateCell(row[col], 100)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
       )}
 
       {/* CTAS Query Interface */}
       {showCTASQuery && result.ctas_table_name && (
-        <CTASQueryInterface
-          ctasTableName={result.ctas_table_name}
-          database={database}
-        />
+        <div ref={ctasRef}>
+          <CTASQueryInterface
+            ctasTableName={result.ctas_table_name}
+            database={database}
+          />
+        </div>
       )}
 
       {/* Map Visualization */}

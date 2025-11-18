@@ -64,22 +64,60 @@ class ResultsService:
 
             result = await self._execute_query(database, query)
 
+            # DEBUG: Log the DESCRIBE result structure
+            app_logger.info(
+                "describe_result_debug",
+                ctas_table=ctas_table_name,
+                result_columns=result.columns,
+                row_count=len(result.rows),
+                first_row_keys=list(result.rows[0].keys()) if result.rows else [],
+                first_row_values=list(result.rows[0].values()) if result.rows else []
+            )
+
             # Parse schema from DESCRIBE result
             columns = []
             has_country_column = False
 
             for row in result.rows:
-                col_name = row.get("col_name", "")
-                col_type = row.get("data_type", "")
+                # Try different possible column name keys from DESCRIBE
+                col_name = (
+                    row.get("col_name") or
+                    row.get("column_name") or
+                    row.get("field") or
+                    (list(row.values())[0] if row and len(row.values()) > 0 else "")
+                )
+
+                # Try different possible type keys
+                col_type = (
+                    row.get("data_type") or
+                    row.get("type") or
+                    (list(row.values())[1] if row and len(row.values()) > 1 else "")
+                )
+
+                app_logger.info(
+                    "describe_row_parsed",
+                    col_name=col_name,
+                    col_type=col_type,
+                    row_keys=list(row.keys())
+                )
 
                 # Skip partition info and empty rows
-                if not col_name or col_name.startswith("#") or not col_type:
+                if not col_name or str(col_name).startswith("#") or not col_type:
+                    app_logger.info(
+                        "describe_row_skipped",
+                        col_name=col_name,
+                        col_type=col_type,
+                        reason="empty or partition info"
+                    )
                     continue
 
-                columns.append(CTASSchemaColumn(name=col_name, type=col_type))
+                columns.append(CTASSchemaColumn(name=str(col_name), type=str(col_type)))
 
-                # Check for country column
-                if col_name.lower() == "iso_country_code":
+                # Check for country column - match any column ending with country_code
+                col_name_lower = str(col_name).lower()
+                if (col_name_lower.endswith("country_code") or
+                    col_name_lower.endswith("_country_code") or
+                    col_name_lower == "iso_country_code"):
                     has_country_column = True
 
             app_logger.info(
@@ -129,7 +167,7 @@ class ResultsService:
                 database=database
             )
 
-            # First check if table has iso_country_code column
+            # First check if table has country column
             schema = await self.get_ctas_schema(ctas_table_name, database)
 
             if not schema.has_country_column:
@@ -143,21 +181,38 @@ class ResultsService:
                     country_count=0
                 )
 
-            # Query distinct countries
+            # Find the country column name
+            country_column = None
+            for col in schema.columns:
+                col_name_lower = col.name.lower()
+                if (col_name_lower.endswith("country_code") or
+                    col_name_lower.endswith("_country_code") or
+                    col_name_lower == "iso_country_code"):
+                    country_column = col.name
+                    break
+
+            if not country_column:
+                return CTASCountriesResponse(
+                    table_name=ctas_table_name,
+                    countries=[],
+                    country_count=0
+                )
+
+            # Query distinct countries using the actual column name
             query = f"""
-                SELECT DISTINCT iso_country_code
+                SELECT DISTINCT "{country_column}"
                 FROM {ctas_table_name}
-                WHERE iso_country_code IS NOT NULL
-                ORDER BY iso_country_code
+                WHERE "{country_column}" IS NOT NULL
+                ORDER BY "{country_column}"
             """
 
             result = await self._execute_query(database, query, max_rows=500)
 
-            # Extract country codes
+            # Extract country codes (use the actual column name)
             countries = [
-                row.get("iso_country_code", "")
+                row.get(country_column, "")
                 for row in result.rows
-                if row.get("iso_country_code")
+                if row.get(country_column)
             ]
 
             app_logger.info(
