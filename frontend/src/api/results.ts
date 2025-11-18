@@ -38,10 +38,10 @@ export const resultsApi = {
     ctasTableName: string,
     database: string
   ): Promise<CTASSchemaResponse> => {
-    const response = await api.get(endpoints.results.schema(ctasTableName), {
+    // api.get already returns response.data, no need to extract again
+    return await api.get(endpoints.results.schema(ctasTableName), {
       params: { database },
     });
-    return response.data;
   },
 
   /**
@@ -51,10 +51,10 @@ export const resultsApi = {
     ctasTableName: string,
     database: string
   ): Promise<CTASCountriesResponse> => {
-    const response = await api.get(endpoints.results.countries(ctasTableName), {
+    // api.get already returns response.data, no need to extract again
+    return await api.get(endpoints.results.countries(ctasTableName), {
       params: { database },
     });
-    return response.data;
   },
 
   /**
@@ -65,13 +65,13 @@ export const resultsApi = {
     database: string,
     queryRequest: CTASQueryRequest
   ): Promise<CTASQueryResponse> => {
-    const response = await api.post(
+    // api.post already returns response.data, no need to extract again
+    return await api.post(
       endpoints.results.query(ctasTableName),
       queryRequest,
       {
         params: { database },
       }
     );
-    return response.data;
   },
 };
