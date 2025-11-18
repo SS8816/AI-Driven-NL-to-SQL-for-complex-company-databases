@@ -25,7 +25,7 @@ import {
   CTASQueryResponse,
   CTASCountriesResponse,
 } from '@/types';
-import { formatExecutionTime } from '@/utils/format';
+import { formatExecutionTime, truncateCell } from '@/utils/format';
 import toast from 'react-hot-toast';
 
 interface CTASQueryInterfaceProps {
@@ -387,7 +387,7 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
                         {queryResult.columns?.map((col) => (
                           <th
                             key={col}
-                            className="text-left p-3 font-medium text-gray-300"
+                            className="text-left p-3 font-medium text-gray-300 whitespace-nowrap"
                           >
                             {col}
                           </th>
@@ -401,8 +401,8 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
                           className="border-b border-dark-border hover:bg-dark-hover"
                         >
                           {queryResult.columns?.map((col) => (
-                            <td key={col} className="p-3 text-gray-400 font-mono text-xs">
-                              {String(row[col] ?? 'NULL')}
+                            <td key={col} className="p-3 text-gray-400 font-mono text-xs max-w-xs truncate" title={String(row[col] ?? 'NULL')}>
+                              {truncateCell(row[col], 100)}
                             </td>
                           ))}
                         </tr>

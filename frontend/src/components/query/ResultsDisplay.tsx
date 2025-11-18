@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { QueryResult } from '@/types';
 import { Card, Button, Badge } from '@/components/common';
-import { formatNumber, formatExecutionTime, formatSQL } from '@/utils/format';
+import { formatNumber, formatExecutionTime, formatSQL, truncateCell } from '@/utils/format';
 import { resultsApi } from '@/api';
 import { CTASQueryInterface } from './CTASQueryInterface';
 import toast from 'react-hot-toast';
@@ -177,7 +177,7 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
 
       {/* Data Preview */}
       {result.preview_data && result.preview_data.length > 0 && (
-        <Card title="Data Preview" subtitle={`First ${result.preview_data.length} rows`}>
+        <Card title="Data Preview" subtitle={`First ${result.row_count} rows`}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -185,7 +185,7 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
                   {result.columns?.map((col) => (
                     <th
                       key={col}
-                      className="text-left p-3 font-medium text-gray-300"
+                      className="text-left p-3 font-medium text-gray-300 whitespace-nowrap"
                     >
                       {col}
                     </th>
@@ -193,14 +193,14 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
                 </tr>
               </thead>
               <tbody>
-                {result.preview_data.map((row, idx) => (
+                {result.preview_data.slice(0, 1000).map((row, idx) => (
                   <tr
                     key={idx}
                     className="border-b border-dark-border hover:bg-dark-hover"
                   >
                     {result.columns?.map((col) => (
-                      <td key={col} className="p-3 text-gray-400 font-mono text-xs">
-                        {String(row[col] ?? 'NULL')}
+                      <td key={col} className="p-3 text-gray-400 font-mono text-xs max-w-xs truncate" title={String(row[col] ?? 'NULL')}>
+                        {truncateCell(row[col], 100)}
                       </td>
                     ))}
                   </tr>
