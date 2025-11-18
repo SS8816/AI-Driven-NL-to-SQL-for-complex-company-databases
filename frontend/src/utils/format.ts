@@ -70,6 +70,23 @@ export function truncate(text: string, maxLength: number): string {
 }
 
 /**
+ * Truncate table cell value for display (handles WKT and other long values)
+ * Truncates to 100 characters by default to prevent UI lag
+ */
+export function truncateCell(value: any, maxLength: number = 100): string {
+  if (value === null || value === undefined) return 'NULL';
+
+  const strValue = String(value);
+
+  // For very long values (like WKT geometries), truncate aggressively
+  if (strValue.length > maxLength) {
+    return strValue.slice(0, maxLength) + '...';
+  }
+
+  return strValue;
+}
+
+/**
  * Format SQL for display (basic formatting)
  */
 export function formatSQL(sql: string): string {

@@ -11,19 +11,20 @@ import {
 } from 'lucide-react';
 import { QueryResult } from '@/types';
 import { Card, Button, Badge } from '@/components/common';
-import { formatNumber, formatExecutionTime, formatSQL } from '@/utils/format';
+import { formatNumber, formatExecutionTime, formatSQL, truncateCell } from '@/utils/format';
 import { resultsApi } from '@/api';
 import { CTASQueryInterface } from './CTASQueryInterface';
+import { ResultsMapView } from '@/components/map';
 import toast from 'react-hot-toast';
 
 interface ResultsDisplayProps {
   result: QueryResult;
-  onViewOnMap?: () => void;
 }
 
-export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
+export function ResultsDisplay({ result }: ResultsDisplayProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [showCTASQuery, setShowCTASQuery] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   // Extract database from CTAS table name
   const database = result.ctas_table_name?.split('.')[0] || 'unknown';
@@ -131,12 +132,14 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
                 Export GeoJSON
               </Button>
 
-              {onViewOnMap && (
-                <Button onClick={onViewOnMap} variant="primary" size="sm">
-                  <MapPin className="w-4 h-4 mr-2" />
-                  View on Map
-                </Button>
-              )}
+              <Button
+                onClick={() => setShowMap(!showMap)}
+                variant={showMap ? 'primary' : 'secondary'}
+                size="sm"
+              >
+                <MapPin className="w-4 h-4 mr-2" />
+                {showMap ? 'Hide' : 'View on'} Map
+              </Button>
             </>
           )}
 
@@ -177,7 +180,7 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
 
       {/* Data Preview */}
       {result.preview_data && result.preview_data.length > 0 && (
-        <Card title="Data Preview" subtitle={`First ${result.preview_data.length} rows`}>
+        <Card title="Data Preview" subtitle={`First ${result.row_count} rows`}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -185,7 +188,7 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
                   {result.columns?.map((col) => (
                     <th
                       key={col}
-                      className="text-left p-3 font-medium text-gray-300"
+                      className="text-left p-3 font-medium text-gray-300 whitespace-nowrap"
                     >
                       {col}
                     </th>
@@ -193,14 +196,14 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
                 </tr>
               </thead>
               <tbody>
-                {result.preview_data.map((row, idx) => (
+                {result.preview_data.slice(0, 1000).map((row, idx) => (
                   <tr
                     key={idx}
                     className="border-b border-dark-border hover:bg-dark-hover"
                   >
                     {result.columns?.map((col) => (
-                      <td key={col} className="p-3 text-gray-400 font-mono text-xs">
-                        {String(row[col] ?? 'NULL')}
+                      <td key={col} className="p-3 text-gray-400 font-mono text-xs max-w-xs truncate" title={String(row[col] ?? 'NULL')}>
+                        {truncateCell(row[col], 100)}
                       </td>
                     ))}
                   </tr>
@@ -216,6 +219,15 @@ export function ResultsDisplay({ result, onViewOnMap }: ResultsDisplayProps) {
         <CTASQueryInterface
           ctasTableName={result.ctas_table_name}
           database={database}
+        />
+      )}
+
+      {/* Map Visualization */}
+      {showMap && hasGeometry && result.preview_data && result.columns && (
+        <ResultsMapView
+          rows={result.preview_data}
+          columns={result.columns}
+          onClose={() => setShowMap(false)}
         />
       )}
     </div>
