@@ -7,3 +7,4 @@ export { Loading, Spinner } from './Loading';
 export { Badge } from './Badge';
 export { EmptyState } from './EmptyState';
 export { Tabs, TabPanel } from './Tabs';
+export { HereLogo } from './HereLogo';
