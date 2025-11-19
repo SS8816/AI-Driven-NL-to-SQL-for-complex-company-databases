@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Filter,
   Code,
@@ -19,7 +20,8 @@ import {
   Badge,
   Loading,
 } from '@/components/common';
-import { resultsApi } from '@/api';
+import { resultsApi, metadataApi } from '@/api';
+import type { CountryMapping } from '@/api';
 import {
   CTASSchemaResponse,
   CTASQueryResponse,
@@ -34,6 +36,13 @@ interface CTASQueryInterfaceProps {
 }
 
 export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfaceProps) {
+  // Fetch country mappings for display formatting
+  const { data: countryMappings } = useQuery({
+    queryKey: ['country-mappings'],
+    queryFn: () => metadataApi.getCountryMappings(),
+    staleTime: Infinity, // Country mappings don't change
+  });
+
   const [activeTab, setActiveTab] = useState('country');
   const [isLoadingSchema, setIsLoadingSchema] = useState(true);
   const [isLoadingCountries, setIsLoadingCountries] = useState(false);
@@ -49,6 +58,13 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
   const [selectedCountry, setSelectedCountry] = useState<string>('');
   const [customSQL, setCustomSQL] = useState('SELECT * FROM {table} LIMIT 100');
   const [limit, setLimit] = useState(1000);
+
+  // Format country display with full name
+  const formatCountryDisplay = (code: string): string => {
+    if (!countryMappings) return code;
+    const name = countryMappings[code];
+    return name ? `${name} (${code})` : code;
+  };
 
   // Load schema on mount
   useEffect(() => {
@@ -277,7 +293,7 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
                       onChange={(e) => setSelectedCountry(e.target.value)}
                       disabled={isExecuting}
                       placeholder="-- Select a country --"
-                      options={countries.map(code => ({ value: code, label: code }))}
+                      options={countries.map(code => ({ value: code, label: formatCountryDisplay(code) }))}
                     />
                     <p className="mt-2 text-sm text-gray-500">
                       {countries.length} countries available in this table

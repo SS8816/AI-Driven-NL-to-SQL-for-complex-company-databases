@@ -4,52 +4,66 @@ import type { GeoJSONSourceRaw } from 'react-map-gl';
 import mapboxgl from 'mapbox-gl';
 import { Card } from '@/components/common';
 import { config } from '@/config';
+import type { GeojsonLayer } from './ResultsMapView';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface MapViewProps {
-  geojsonData: GeoJSON.FeatureCollection;
+  geojsonLayers: GeojsonLayer[];
   title?: string;
 }
 
-export function MapView({ geojsonData, title = 'Map Visualization' }: MapViewProps) {
+export function MapView({ geojsonLayers, title = 'Map Visualization' }: MapViewProps) {
   const mapRef = useRef<MapRef>(null);
   const [popupInfo, setPopupInfo] = useState<any>(null);
 
+  // Get all layer IDs for click interaction
+  const interactiveLayerIds = geojsonLayers.flatMap((layer) => [
+    `${layer.name}-points`,
+    `${layer.name}-lines`,
+    `${layer.name}-polygons`,
+    `${layer.name}-multipolygons`,
+  ]);
+
   useEffect(() => {
-    // Fit bounds to show all features
-    if (mapRef.current && geojsonData.features.length > 0) {
+    // Fit bounds to show all features from all layers
+    if (mapRef.current && geojsonLayers.length > 0) {
       const map = mapRef.current.getMap();
       const bounds = new mapboxgl.LngLatBounds();
+      let hasFeatures = false;
 
-      geojsonData.features.forEach((feature: any) => {
-        const extendBounds = (coords: any) => {
-          if (Array.isArray(coords[0])) {
-            coords.forEach(extendBounds);
-          } else {
-            bounds.extend(coords as [number, number]);
+      geojsonLayers.forEach((layer) => {
+        layer.data.features.forEach((feature: any) => {
+          const extendBounds = (coords: any) => {
+            if (Array.isArray(coords[0])) {
+              coords.forEach(extendBounds);
+            } else {
+              bounds.extend(coords as [number, number]);
+              hasFeatures = true;
+            }
+          };
+
+          if (feature.geometry.type === 'Point') {
+            bounds.extend(feature.geometry.coordinates as [number, number]);
+            hasFeatures = true;
+          } else if (feature.geometry.coordinates) {
+            extendBounds(feature.geometry.coordinates);
           }
-        };
-
-        if (feature.geometry.type === 'Point') {
-          bounds.extend(feature.geometry.coordinates as [number, number]);
-        } else if (feature.geometry.coordinates) {
-          extendBounds(feature.geometry.coordinates);
-        }
+        });
       });
 
-      if (!bounds.isEmpty()) {
+      if (hasFeatures && !bounds.isEmpty()) {
         map.fitBounds(bounds, { padding: 50, duration: 1000 });
       }
     }
-  }, [geojsonData]);
+  }, [geojsonLayers]);
 
-  const geojsonSource: GeoJSONSourceRaw = {
-    type: 'geojson',
-    data: geojsonData,
-  };
+  const totalFeatures = geojsonLayers.reduce(
+    (sum, layer) => sum + layer.data.features.length,
+    0
+  );
 
   return (
-    <Card title={title} subtitle={`${geojsonData.features.length} features`}>
+    <Card title={title} subtitle={`${totalFeatures} features across ${geojsonLayers.length} layers`}>
       <div className="h-[600px] rounded-lg overflow-hidden">
         <Map
           ref={mapRef}
@@ -69,78 +83,88 @@ export function MapView({ geojsonData, title = 'Map Visualization' }: MapViewPro
               });
             }
           }}
-          interactiveLayerIds={['data-layer']}
+          interactiveLayerIds={interactiveLayerIds}
         >
-          <Source id="data-source" {...geojsonSource}>
-            {/* Point layer */}
-            <Layer
-              id="data-layer"
-              type="circle"
-              paint={{
-                'circle-radius': 8,
-                'circle-color': '#FF3D00',
-                'circle-stroke-color': '#FFFFFF',
-                'circle-stroke-width': 2,
-                'circle-opacity': 0.8,
-              }}
-              filter={['==', ['geometry-type'], 'Point']}
-            />
+          {/* Render each layer with its own source and styles */}
+          {geojsonLayers.map((layer) => {
+            const geojsonSource: GeoJSONSourceRaw = {
+              type: 'geojson',
+              data: layer.data,
+            };
 
-            {/* LineString layer */}
-            <Layer
-              id="line-layer"
-              type="line"
-              paint={{
-                'line-color': '#FF3D00',
-                'line-width': 3,
-              }}
-              filter={['==', ['geometry-type'], 'LineString']}
-            />
+            return (
+              <Source key={layer.name} id={`${layer.name}-source`} {...geojsonSource}>
+                {/* Point layer */}
+                <Layer
+                  id={`${layer.name}-points`}
+                  type="circle"
+                  paint={{
+                    'circle-radius': 8,
+                    'circle-color': layer.color,
+                    'circle-stroke-color': '#FFFFFF',
+                    'circle-stroke-width': 2,
+                    'circle-opacity': 0.8,
+                  }}
+                  filter={['==', ['geometry-type'], 'Point']}
+                />
 
-            {/* Polygon fill layer */}
-            <Layer
-              id="polygon-layer"
-              type="fill"
-              paint={{
-                'fill-color': '#FF3D00',
-                'fill-opacity': 0.3,
-              }}
-              filter={['==', ['geometry-type'], 'Polygon']}
-            />
+                {/* LineString layer */}
+                <Layer
+                  id={`${layer.name}-lines`}
+                  type="line"
+                  paint={{
+                    'line-color': layer.color,
+                    'line-width': 3,
+                  }}
+                  filter={['==', ['geometry-type'], 'LineString']}
+                />
 
-            {/* Polygon outline */}
-            <Layer
-              id="polygon-outline"
-              type="line"
-              paint={{
-                'line-color': '#FF3D00',
-                'line-width': 2,
-              }}
-              filter={['==', ['geometry-type'], 'Polygon']}
-            />
+                {/* Polygon fill layer */}
+                <Layer
+                  id={`${layer.name}-polygons`}
+                  type="fill"
+                  paint={{
+                    'fill-color': layer.color,
+                    'fill-opacity': 0.3,
+                  }}
+                  filter={['==', ['geometry-type'], 'Polygon']}
+                />
 
-            {/* MultiPolygon fill layer */}
-            <Layer
-              id="multipolygon-layer"
-              type="fill"
-              paint={{
-                'fill-color': '#FF3D00',
-                'fill-opacity': 0.3,
-              }}
-              filter={['==', ['geometry-type'], 'MultiPolygon']}
-            />
+                {/* Polygon outline */}
+                <Layer
+                  id={`${layer.name}-polygon-outline`}
+                  type="line"
+                  paint={{
+                    'line-color': layer.color,
+                    'line-width': 2,
+                  }}
+                  filter={['==', ['geometry-type'], 'Polygon']}
+                />
 
-            {/* MultiPolygon outline */}
-            <Layer
-              id="multipolygon-outline"
-              type="line"
-              paint={{
-                'line-color': '#FF3D00',
-                'line-width': 2,
-              }}
-              filter={['==', ['geometry-type'], 'MultiPolygon']}
-            />
-          </Source>
+                {/* MultiPolygon fill layer */}
+                <Layer
+                  id={`${layer.name}-multipolygons`}
+                  type="fill"
+                  paint={{
+                    'fill-color': layer.color,
+                    'fill-opacity': 0.3,
+                  }}
+                  filter={['==', ['geometry-type'], 'MultiPolygon']}
+                />
+
+                {/* MultiPolygon outline */}
+                <Layer
+                  id={`${layer.name}-multipolygon-outline`}
+                  type="line"
+                  paint={{
+                    'line-color': layer.color,
+                    'line-width': 2,
+                  }}
+                  filter={['==', ['geometry-type'], 'MultiPolygon']}
+                />
+              </Source>
+            );
+          })}
 
           {popupInfo && (
             <Popup
