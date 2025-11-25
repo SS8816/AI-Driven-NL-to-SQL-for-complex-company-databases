@@ -37,11 +37,22 @@ interface CTASQueryInterfaceProps {
 
 export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfaceProps) {
   // Fetch country mappings for display formatting
-  const { data: countryMappings } = useQuery({
+  const { data: countryMappings, isLoading: isLoadingMappings, error: mappingsError } = useQuery({
     queryKey: ['country-mappings'],
     queryFn: () => metadataApi.getCountryMappings(),
     staleTime: Infinity, // Country mappings don't change
   });
+
+  // Debug: Log country mappings when they load
+  useEffect(() => {
+    console.log('[CTASQueryInterface] Country mappings loaded:', {
+      isLoading: isLoadingMappings,
+      hasData: !!countryMappings,
+      mappingsCount: countryMappings ? Object.keys(countryMappings).length : 0,
+      sampleMappings: countryMappings ? Object.entries(countryMappings).slice(0, 3) : [],
+      error: mappingsError,
+    });
+  }, [countryMappings, isLoadingMappings, mappingsError]);
 
   const [activeTab, setActiveTab] = useState('country');
   const [isLoadingSchema, setIsLoadingSchema] = useState(true);
@@ -61,9 +72,14 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
 
   // Format country display with full name
   const formatCountryDisplay = (code: string): string => {
-    if (!countryMappings) return code;
+    if (!countryMappings) {
+      console.log('[formatCountryDisplay] No mappings available yet for code:', code);
+      return code;
+    }
     const name = countryMappings[code];
-    return name ? `${name} (${code})` : code;
+    const formatted = name ? `${name} (${code})` : code;
+    console.log('[formatCountryDisplay] Formatting:', { code, name, formatted });
+    return formatted;
   };
 
   // Load schema on mount
