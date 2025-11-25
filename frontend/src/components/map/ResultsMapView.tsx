@@ -148,15 +148,30 @@ export function ResultsMapView({ rows, columns, onClose }: ResultsMapViewProps) 
   const [idFilter, setIdFilter] = useState('');
   const [visibleLayers, setVisibleLayers] = useState<Set<string>>(new Set());
 
-  // Find ALL WKT columns
+  // Find ALL WKT columns by checking if they actually contain valid WKT data
   const wktColumns = useMemo(() => {
-    return columns.filter(
-      (col) =>
+    if (rows.length === 0) return [];
+
+    return columns.filter((col) => {
+      // First check: column name suggests it's a WKT column
+      const nameMatch =
         col.toLowerCase().includes('wkt') ||
-        col.toLowerCase().includes('geometry') ||
-        col.toLowerCase() === 'geom'
-    );
-  }, [columns]);
+        col.toLowerCase().endsWith('_geometry') ||
+        col.toLowerCase() === 'geometry' ||
+        col.toLowerCase() === 'geom';
+
+      if (!nameMatch) return false;
+
+      // Second check: verify it actually contains WKT string data in the first row
+      const firstValue = rows[0]?.[col];
+      if (!firstValue || typeof firstValue !== 'string') return false;
+
+      // Check if it looks like WKT (starts with geometry type keywords)
+      const wktPattern =
+        /^(POINT|LINESTRING|POLYGON|MULTIPOINT|MULTILINESTRING|MULTIPOLYGON|GEOMETRYCOLLECTION)\s*\(/i;
+      return wktPattern.test(firstValue.trim());
+    });
+  }, [columns, rows]);
 
   // Initialize visible layers (all visible by default)
   useMemo(() => {
@@ -353,7 +368,10 @@ export function ResultsMapView({ rows, columns, onClose }: ResultsMapViewProps) 
 
         {/* Map */}
         {totalVisibleFeatures > 0 ? (
-          <MapView geojsonLayers={geojsonLayers.filter((l) => l.visible)} allFeatures={allVisibleFeatures} />
+          <MapView
+            geojsonLayers={geojsonLayers.filter((l) => l.visible && l.featureCount > 0)}
+            allFeatures={allVisibleFeatures}
+          />
         ) : (
           <div className="h-[400px] flex items-center justify-center bg-dark-sidebar rounded-lg">
             <div className="text-center">

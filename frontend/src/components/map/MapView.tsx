@@ -22,24 +22,56 @@ export function MapView({ geojsonLayers, allFeatures, title = 'Map Visualization
     if (mapRef.current && allFeatures.features.length > 0) {
       const map = mapRef.current.getMap();
       const bounds = new mapboxgl.LngLatBounds();
+      let hasValidCoords = false;
 
       allFeatures.features.forEach((feature: any) => {
+        if (!feature.geometry || !feature.geometry.coordinates) return;
+
         const extendBounds = (coords: any) => {
+          if (!coords) return;
+
           if (Array.isArray(coords[0])) {
             coords.forEach(extendBounds);
           } else {
-            bounds.extend(coords as [number, number]);
+            // Validate that we have valid lng/lat numbers
+            const [lng, lat] = coords;
+            if (
+              typeof lng === 'number' &&
+              typeof lat === 'number' &&
+              !isNaN(lng) &&
+              !isNaN(lat) &&
+              lng >= -180 &&
+              lng <= 180 &&
+              lat >= -90 &&
+              lat <= 90
+            ) {
+              bounds.extend([lng, lat]);
+              hasValidCoords = true;
+            }
           }
         };
 
-        if (feature.geometry.type === 'Point') {
-          bounds.extend(feature.geometry.coordinates as [number, number]);
-        } else if (feature.geometry.coordinates) {
-          extendBounds(feature.geometry.coordinates);
+        try {
+          if (feature.geometry.type === 'Point') {
+            const [lng, lat] = feature.geometry.coordinates;
+            if (
+              typeof lng === 'number' &&
+              typeof lat === 'number' &&
+              !isNaN(lng) &&
+              !isNaN(lat)
+            ) {
+              bounds.extend([lng, lat]);
+              hasValidCoords = true;
+            }
+          } else if (feature.geometry.coordinates) {
+            extendBounds(feature.geometry.coordinates);
+          }
+        } catch (error) {
+          console.warn('Error processing feature bounds:', error, feature);
         }
       });
 
-      if (!bounds.isEmpty()) {
+      if (hasValidCoords && !bounds.isEmpty()) {
         map.fitBounds(bounds, { padding: 50, duration: 1000 });
       }
     }
