@@ -1,18 +1,8 @@
 import { useState, useMemo } from 'react';
-import { MapPin, X, Filter, Eye, EyeOff } from 'lucide-react';
-import { Card, Button, Input } from '@/components/common';
+import { MapPin, X, Filter, Layers, Eye, EyeOff } from 'lucide-react';
+import { Card, Button, Input, Badge } from '@/components/common';
 import { MapView } from './MapView';
 import { truncateCell } from '@/utils/format';
-
-// Color palette for different geometry layers
-const LAYER_COLORS = [
-  '#FF3D00', // Red
-  '#2196F3', // Blue
-  '#4CAF50', // Green
-  '#FF9800', // Orange
-  '#9C27B0', // Purple
-  '#00BCD4', // Cyan
-];
 
 interface ResultsMapViewProps {
   rows: Array<Record<string, any>>;
@@ -23,9 +13,20 @@ interface ResultsMapViewProps {
 export interface GeojsonLayer {
   name: string;
   color: string;
-  data: GeoJSON.FeatureCollection;
+  featureCount: number;
+  geojson: GeoJSON.FeatureCollection;
   visible: boolean;
 }
+
+// Color palette for different geometry layers
+const LAYER_COLORS = [
+  '#FF3D00', // Red
+  '#2196F3', // Blue
+  '#4CAF50', // Green
+  '#FF9800', // Orange
+  '#9C27B0', // Purple
+  '#00BCD4', // Cyan
+];
 
 /**
  * Convert WKT string to GeoJSON geometry
@@ -82,13 +83,14 @@ function wktToGeojson(wkt: string): GeoJSON.Geometry | null {
     if (wktUpper.startsWith('MULTILINESTRING')) {
       const linesMatch = wkt.match(/MULTILINESTRING\s*\((.+)\)/i)?.[1];
       if (!linesMatch) return null;
-      const lines = linesMatch.match(/\(([^)]+)\)/g)?.map((line) => {
-        const coords = line.replace(/[()]/g, '');
-        return coords.split(',').map((p) => {
-          const [lng, lat] = p.trim().split(/\s+/).map(Number);
-          return [lng, lat];
-        });
-      }) || [];
+      const lines =
+        linesMatch.match(/\(([^)]+)\)/g)?.map((line) => {
+          const coords = line.replace(/[()]/g, '');
+          return coords.split(',').map((p) => {
+            const [lng, lat] = p.trim().split(/\s+/).map(Number);
+            return [lng, lat];
+          });
+        }) || [];
       return { type: 'MultiLineString', coordinates: lines };
     }
 
@@ -97,7 +99,6 @@ function wktToGeojson(wkt: string): GeoJSON.Geometry | null {
       const polygonsMatch = wkt.match(/MULTIPOLYGON\s*\((.+)\)/i)?.[1];
       if (!polygonsMatch) return null;
 
-      // Extract individual polygons
       const polygons: number[][][][] = [];
       let depth = 0;
       let currentPoly = '';
@@ -109,7 +110,6 @@ function wktToGeojson(wkt: string): GeoJSON.Geometry | null {
         currentPoly += char;
 
         if (depth === 1 && polygonsMatch[i + 1] === ',') {
-          // End of a polygon
           const ringsMatch = currentPoly.match(/\(\(([^)]+)\)\)/);
           if (ringsMatch) {
             const points = ringsMatch[1].split(',').map((p) => {
@@ -119,11 +119,10 @@ function wktToGeojson(wkt: string): GeoJSON.Geometry | null {
             polygons.push([points]);
           }
           currentPoly = '';
-          i++; // Skip the comma
+          i++;
         }
       }
 
-      // Handle last polygon
       if (currentPoly) {
         const ringsMatch = currentPoly.match(/\(\(([^)]+)\)\)/);
         if (ringsMatch) {
@@ -147,6 +146,7 @@ function wktToGeojson(wkt: string): GeoJSON.Geometry | null {
 
 export function ResultsMapView({ rows, columns, onClose }: ResultsMapViewProps) {
   const [idFilter, setIdFilter] = useState('');
+  const [visibleLayers, setVisibleLayers] = useState<Set<string>>(new Set());
 
   // Find ALL WKT columns
   const wktColumns = useMemo(() => {
@@ -158,15 +158,11 @@ export function ResultsMapView({ rows, columns, onClose }: ResultsMapViewProps) 
     );
   }, [columns]);
 
-  // State for layer visibility
-  const [visibleLayers, setVisibleLayers] = useState<Set<string>>(() => {
-    // Initially all layers are visible
-    return new Set(wktColumns);
-  });
-
-  // Update visible layers when wktColumns change
+  // Initialize visible layers (all visible by default)
   useMemo(() => {
-    setVisibleLayers(new Set(wktColumns));
+    if (wktColumns.length > 0 && visibleLayers.size === 0) {
+      setVisibleLayers(new Set(wktColumns));
+    }
   }, [wktColumns]);
 
   // Find ID column
@@ -174,7 +170,20 @@ export function ResultsMapView({ rows, columns, onClose }: ResultsMapViewProps) 
     (col) => col.toLowerCase() === 'id' || col.toLowerCase().endsWith('_id')
   );
 
-  // Convert rows to GeoJSON layers with filtering
+  // Toggle layer visibility
+  const toggleLayer = (layerName: string) => {
+    setVisibleLayers((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(layerName)) {
+        newSet.delete(layerName);
+      } else {
+        newSet.add(layerName);
+      }
+      return newSet;
+    });
+  };
+
+  // Convert rows to multiple GeoJSON layers
   const geojsonLayers = useMemo((): GeojsonLayer[] => {
     if (wktColumns.length === 0) {
       return [];
@@ -188,11 +197,11 @@ export function ResultsMapView({ rows, columns, onClose }: ResultsMapViewProps) 
         })
       : rows;
 
-    // Create a layer for each WKT column
-    return wktColumns.map((wktColumn, layerIdx) => {
+    // Create a GeoJSON for each WKT column
+    return wktColumns.map((wktColumn, idx) => {
       const features: GeoJSON.Feature[] = [];
 
-      filteredRows.forEach((row, idx) => {
+      filteredRows.forEach((row, rowIdx) => {
         const wktValue = row[wktColumn];
         if (!wktValue) return;
 
@@ -200,7 +209,9 @@ export function ResultsMapView({ rows, columns, onClose }: ResultsMapViewProps) 
         if (!geometry) return;
 
         // Build properties (exclude WKT columns to reduce size)
-        const properties: Record<string, any> = {};
+        const properties: Record<string, any> = {
+          _layer: wktColumn, // Track which column this came from
+        };
         columns.forEach((col) => {
           if (!wktColumns.includes(col)) {
             properties[col] = truncateCell(row[col], 200);
@@ -209,7 +220,7 @@ export function ResultsMapView({ rows, columns, onClose }: ResultsMapViewProps) 
 
         features.push({
           type: 'Feature',
-          id: idx,
+          id: `${wktColumn}-${rowIdx}`,
           geometry,
           properties,
         });
@@ -217,8 +228,9 @@ export function ResultsMapView({ rows, columns, onClose }: ResultsMapViewProps) 
 
       return {
         name: wktColumn,
-        color: LAYER_COLORS[layerIdx % LAYER_COLORS.length],
-        data: {
+        color: LAYER_COLORS[idx % LAYER_COLORS.length],
+        featureCount: features.length,
+        geojson: {
           type: 'FeatureCollection',
           features,
         },
@@ -227,23 +239,19 @@ export function ResultsMapView({ rows, columns, onClose }: ResultsMapViewProps) 
     });
   }, [rows, columns, wktColumns, idColumn, idFilter, visibleLayers]);
 
-  // Toggle layer visibility
-  const toggleLayer = (layerName: string) => {
-    setVisibleLayers((prev) => {
-      const next = new Set(prev);
-      if (next.has(layerName)) {
-        next.delete(layerName);
-      } else {
-        next.add(layerName);
+  // Combine all visible layers into one GeoJSON for bounds calculation
+  const allVisibleFeatures = useMemo((): GeoJSON.FeatureCollection => {
+    const features: GeoJSON.Feature[] = [];
+    geojsonLayers.forEach((layer) => {
+      if (layer.visible) {
+        features.push(...layer.geojson.features);
       }
-      return next;
     });
-  };
-
-  // Calculate total features across all visible layers
-  const totalFeatures = geojsonLayers
-    .filter((layer) => layer.visible)
-    .reduce((sum, layer) => sum + layer.data.features.length, 0);
+    return {
+      type: 'FeatureCollection',
+      features,
+    };
+  }, [geojsonLayers]);
 
   if (wktColumns.length === 0) {
     return (
@@ -262,10 +270,15 @@ export function ResultsMapView({ rows, columns, onClose }: ResultsMapViewProps) 
     );
   }
 
+  const totalVisibleFeatures = geojsonLayers.reduce(
+    (sum, layer) => sum + (layer.visible ? layer.featureCount : 0),
+    0
+  );
+
   return (
     <Card
       title="Map Visualization"
-      subtitle={`Showing ${totalFeatures} features across ${geojsonLayers.filter(l => l.visible).length} layers`}
+      subtitle={`${wktColumns.length} geometry layer${wktColumns.length > 1 ? 's' : ''} • ${totalVisibleFeatures} features visible`}
       headerAction={
         <Button onClick={onClose} variant="ghost" size="sm">
           <X className="w-4 h-4" />
@@ -273,97 +286,85 @@ export function ResultsMapView({ rows, columns, onClose }: ResultsMapViewProps) 
       }
     >
       <div className="space-y-4">
-        {/* ID Filter */}
-        {idColumn && (
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
-            <Input
-              type="text"
-              placeholder={`Filter by ${idColumn}...`}
-              value={idFilter}
-              onChange={(e) => setIdFilter(e.target.value)}
-              className="max-w-xs"
-            />
-            {idFilter && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIdFilter('')}
-              >
-                Clear
-              </Button>
-            )}
-          </div>
-        )}
-
-        {/* Layer Toggles */}
-        {geojsonLayers.length > 1 && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm text-gray-400">Layers:</span>
-            {geojsonLayers.map((layer) => (
-              <Button
-                key={layer.name}
-                variant={layer.visible ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => toggleLayer(layer.name)}
-                className="flex items-center gap-2"
-              >
-                {layer.visible ? (
-                  <Eye className="w-3 h-3" />
-                ) : (
-                  <EyeOff className="w-3 h-3" />
-                )}
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: layer.color }}
-                />
-                <span className="font-mono text-xs">{layer.name}</span>
-                <span className="text-xs text-gray-500">
-                  ({layer.data.features.length})
-                </span>
-              </Button>
-            ))}
-          </div>
-        )}
-
-        {/* Map Info */}
-        <div className="flex items-center gap-4 text-sm text-gray-400 flex-wrap">
-          <div>
-            <span className="font-medium">Geometry Columns:</span>{' '}
-            {geojsonLayers.map((layer, idx) => (
-              <span key={layer.name}>
-                <code className="bg-dark-sidebar px-2 py-1 rounded" style={{ borderLeft: `3px solid ${layer.color}` }}>
-                  {layer.name}
-                </code>
-                {idx < geojsonLayers.length - 1 && ', '}
-              </span>
-            ))}
-          </div>
+        {/* Controls Row */}
+        <div className="flex flex-wrap items-center gap-4">
+          {/* ID Filter */}
           {idColumn && (
-            <div>
-              <span className="font-medium">ID Column:</span>{' '}
-              <code className="bg-dark-sidebar px-2 py-1 rounded">{idColumn}</code>
+            <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+              <Filter className="w-4 h-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder={`Filter by ${idColumn}...`}
+                value={idFilter}
+                onChange={(e) => setIdFilter(e.target.value)}
+                className="flex-1"
+              />
+              {idFilter && (
+                <Button variant="ghost" size="sm" onClick={() => setIdFilter('')}>
+                  Clear
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Layer Toggle Buttons */}
+          {wktColumns.length > 1 && (
+            <div className="flex items-center gap-2">
+              <Layers className="w-4 h-4 text-gray-400" />
+              <span className="text-sm text-gray-500">Layers:</span>
+              {geojsonLayers.map((layer) => (
+                <Button
+                  key={layer.name}
+                  variant={layer.visible ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => toggleLayer(layer.name)}
+                  className="flex items-center gap-1"
+                >
+                  {layer.visible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: layer.color }}
+                  />
+                  <span className="text-xs">{layer.name}</span>
+                  <Badge variant="default" className="ml-1 text-xs">
+                    {layer.featureCount}
+                  </Badge>
+                </Button>
+              ))}
             </div>
           )}
         </div>
 
+        {/* Layer Info */}
+        {wktColumns.length === 1 && (
+          <div className="flex items-center gap-4 text-sm text-gray-400">
+            <div>
+              <span className="font-medium">Geometry Column:</span>{' '}
+              <code className="bg-dark-sidebar px-2 py-1 rounded">{wktColumns[0]}</code>
+            </div>
+            {idColumn && (
+              <div>
+                <span className="font-medium">ID Column:</span>{' '}
+                <code className="bg-dark-sidebar px-2 py-1 rounded">{idColumn}</code>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Map */}
-        {totalFeatures > 0 ? (
-          <MapView geojsonLayers={geojsonLayers.filter((layer) => layer.visible)} />
+        {totalVisibleFeatures > 0 ? (
+          <MapView geojsonLayers={geojsonLayers.filter((l) => l.visible)} allFeatures={allVisibleFeatures} />
         ) : (
           <div className="h-[400px] flex items-center justify-center bg-dark-sidebar rounded-lg">
             <div className="text-center">
               <MapPin className="w-12 h-12 text-gray-500 mx-auto mb-3" />
               <p className="text-gray-400">
-                {idFilter ? 'No features match the filter' : 'No valid geometries found'}
+                {idFilter
+                  ? 'No features match the filter'
+                  : 'No layers visible - toggle layers above to view'}
               </p>
               {idFilter && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setIdFilter('')}
-                  className="mt-3"
-                >
+                <Button variant="secondary" size="sm" onClick={() => setIdFilter('')} className="mt-3">
                   Clear Filter
                 </Button>
               )}
@@ -372,23 +373,31 @@ export function ResultsMapView({ rows, columns, onClose }: ResultsMapViewProps) 
         )}
 
         {/* Legend */}
-        <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
-          {geojsonLayers.filter(l => l.visible).map((layer) => (
-            <div key={layer.name} className="flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                <div
-                  className="w-4 h-4 rounded-full border-2 border-white"
-                  style={{ backgroundColor: layer.color }}
-                />
-                <div
-                  className="w-4 h-4 border-2"
-                  style={{ backgroundColor: `${layer.color}30`, borderColor: layer.color }}
-                />
-                <div className="w-8 h-0.5" style={{ backgroundColor: layer.color }} />
-              </div>
-              <span className="font-mono">{layer.name}</span>
-            </div>
-          ))}
+        <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+          <div className="font-medium">Legend:</div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-white"></div>
+            <span>Points</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-0.5 bg-red-500"></div>
+            <span>Lines</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-red-500/30 border-2 border-red-500"></div>
+            <span>Polygons</span>
+          </div>
+          {wktColumns.length > 1 && (
+            <>
+              <div className="h-4 w-px bg-gray-600 mx-2"></div>
+              {geojsonLayers.map((layer) => (
+                <div key={layer.name} className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded" style={{ backgroundColor: layer.color }} />
+                  <span>{layer.name}</span>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       </div>
     </Card>

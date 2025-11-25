@@ -4,14 +4,12 @@ export const config = {
   wsBaseUrl: import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8000',
   apiPrefix: '/api/v1',
 
-  // HERE Maps Configuration
-  here: {
-    apiKey: import.meta.env.VITE_HERE_API_KEY || '',
-    // Fallback for development (will show watermark without key)
-    defaultCenter: { lat: 39.8283, lng: -98.5795 }, // US center
-    defaultZoom: 4,
-    // Map styles: 'normal.day', 'normal.night', 'reduced.day', 'reduced.night', etc.
-    defaultStyle: 'reduced.night', // Dark theme to match app
+  // Mapbox Configuration
+  mapbox: {
+    accessToken: import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '',
+    defaultStyle: 'mapbox://styles/mapbox/dark-v11',
+    defaultCenter: [-98.5795, 39.8283] as [number, number], // US center
+    defaultZoom: 3,
   },
 
   // Application Settings
