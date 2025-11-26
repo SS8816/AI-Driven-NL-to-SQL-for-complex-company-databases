@@ -646,10 +646,10 @@ def validate_sql_node(state: GraphState) -> Dict:
             print("\n   Calling LLM for function validation...")
             
             azure_config = {
-                "api_key": os.getenv("AZURE_OPENAI_API_KEY"),
-                "azure_endpoint": os.getenv("AZURE_OPENAI_ENDPOINT"),
-                "azure_deployment": os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-                "api_version": os.getenv("AZURE_OPENAI_API_VERSION")
+                "api_key": settings.AZURE_OPENAI_API_KEY,
+                "azure_endpoint": settings.AZURE_OPENAI_ENDPOINT,
+                "azure_deployment": settings.AZURE_OPENAI_DEPLOYMENT,
+                "api_version": settings.AZURE_OPENAI_API_VERSION
             }
             
             function_prompt = create_function_validation_prompt(
