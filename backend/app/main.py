@@ -15,7 +15,7 @@ from app.utils.errors import AppException, AuthenticationError, QueryExecutionEr
 from app.db.database import db
 
 # Import API routers
-from app.api.v1 import auth, schemas, queries, websocket, results, cache
+from app.api.v1 import auth, schemas, queries, websocket, results, cache, metadata
 
 
 @asynccontextmanager
@@ -173,6 +173,7 @@ app.include_router(queries.router, prefix="/api/v1")
 app.include_router(websocket.router, prefix="/api/v1")
 app.include_router(results.router, prefix="/api/v1")
 app.include_router(cache.router, prefix="/api/v1")
+app.include_router(metadata.router, prefix="/api/v1")
 
 
 # Request Logging Middleware

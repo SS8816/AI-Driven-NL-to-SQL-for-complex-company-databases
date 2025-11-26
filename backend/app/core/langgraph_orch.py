@@ -159,10 +159,10 @@ def _get_docs_vectorstore():
     try:
         if _embeddings is None:
             _embeddings = AzureOpenAIEmbeddings(
-                azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-                api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-                azure_deployment="text-embedding-3-small",
-                api_version=os.getenv("AZURE_OPENAI_API_VERSION")
+                "api_key": settings.AZURE_OPENAI_API_KEY,
+                "azure_endpoint": settings.AZURE_OPENAI_ENDPOINT,
+                "azure_deployment": settings.AZURE_OPENAI_DEPLOYMENT,
+                "api_version": settings.AZURE_OPENAI_API_VERSION
             )
         
         _docs_vectorstore = FAISS.load_local(
@@ -193,10 +193,10 @@ def _get_function_vectorstore():
     try:
         if _embeddings is None:
             _embeddings = AzureOpenAIEmbeddings(
-                azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-                api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-                azure_deployment="text-embedding-3-small",
-                api_version=os.getenv("AZURE_OPENAI_API_VERSION")
+                "api_key": settings.AZURE_OPENAI_API_KEY,
+                "azure_endpoint": settings.AZURE_OPENAI_ENDPOINT,
+                "azure_deployment": settings.AZURE_OPENAI_DEPLOYMENT,
+                "api_version": settings.AZURE_OPENAI_API_VERSION
             )
         
         _function_vectorstore = FAISS.load_local(
@@ -646,10 +646,10 @@ def validate_sql_node(state: GraphState) -> Dict:
             print("\n   Calling LLM for function validation...")
             
             azure_config = {
-                "api_key": os.getenv("AZURE_OPENAI_API_KEY"),
-                "azure_endpoint": os.getenv("AZURE_OPENAI_ENDPOINT"),
-                "azure_deployment": os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-                "api_version": os.getenv("AZURE_OPENAI_API_VERSION")
+                "api_key": settings.AZURE_OPENAI_API_KEY,
+                "azure_endpoint": settings.AZURE_OPENAI_ENDPOINT,
+                "azure_deployment": settings.AZURE_OPENAI_DEPLOYMENT,
+                "api_version": settings.AZURE_OPENAI_API_VERSION
             }
             
             function_prompt = create_function_validation_prompt(

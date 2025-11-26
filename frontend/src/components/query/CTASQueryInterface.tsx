@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Filter,
   Code,
@@ -19,7 +20,8 @@ import {
   Badge,
   Loading,
 } from '@/components/common';
-import { resultsApi } from '@/api';
+import { resultsApi, metadataApi } from '@/api';
+import type { CountryMapping } from '@/api';
 import {
   CTASSchemaResponse,
   CTASQueryResponse,
@@ -34,6 +36,24 @@ interface CTASQueryInterfaceProps {
 }
 
 export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfaceProps) {
+  // Fetch country mappings for display formatting
+  const { data: countryMappings, isLoading: isLoadingMappings, error: mappingsError } = useQuery({
+    queryKey: ['country-mappings'],
+    queryFn: () => metadataApi.getCountryMappings(),
+    staleTime: Infinity, // Country mappings don't change
+  });
+
+  // Debug: Log country mappings when they load
+  useEffect(() => {
+    console.log('[CTASQueryInterface] Country mappings loaded:', {
+      isLoading: isLoadingMappings,
+      hasData: !!countryMappings,
+      mappingsCount: countryMappings ? Object.keys(countryMappings).length : 0,
+      sampleMappings: countryMappings ? Object.entries(countryMappings).slice(0, 3) : [],
+      error: mappingsError,
+    });
+  }, [countryMappings, isLoadingMappings, mappingsError]);
+
   const [activeTab, setActiveTab] = useState('country');
   const [isLoadingSchema, setIsLoadingSchema] = useState(true);
   const [isLoadingCountries, setIsLoadingCountries] = useState(false);
@@ -49,6 +69,18 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
   const [selectedCountry, setSelectedCountry] = useState<string>('');
   const [customSQL, setCustomSQL] = useState('SELECT * FROM {table} LIMIT 100');
   const [limit, setLimit] = useState(1000);
+
+  // Format country display with full name
+  const formatCountryDisplay = (code: string): string => {
+    if (!countryMappings) {
+      console.log('[formatCountryDisplay] No mappings available yet for code:', code);
+      return code;
+    }
+    const name = countryMappings[code];
+    const formatted = name ? `${name} (${code})` : code;
+    console.log('[formatCountryDisplay] Formatting:', { code, name, formatted });
+    return formatted;
+  };
 
   // Load schema on mount
   useEffect(() => {
@@ -276,14 +308,9 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
                       value={selectedCountry}
                       onChange={(e) => setSelectedCountry(e.target.value)}
                       disabled={isExecuting}
-                    >
-                      <option value="">-- Select a country --</option>
-                      {countries.map((code) => (
-                        <option key={code} value={code}>
-                          {code}
-                        </option>
-                      ))}
-                    </Select>
+                      placeholder="-- Select a country --"
+                      options={countries.map(code => ({ value: code, label: formatCountryDisplay(code) }))}
+                    />
                     <p className="mt-2 text-sm text-gray-500">
                       {countries.length} countries available in this table
                     </p>
@@ -297,13 +324,14 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
                       value={limit.toString()}
                       onChange={(e) => setLimit(parseInt(e.target.value))}
                       disabled={isExecuting}
-                    >
-                      <option value="100">100 rows</option>
-                      <option value="500">500 rows</option>
-                      <option value="1000">1,000 rows</option>
-                      <option value="5000">5,000 rows</option>
-                      <option value="10000">10,000 rows</option>
-                    </Select>
+                      options={[
+                        { value: '100', label: '100 rows' },
+                        { value: '500', label: '500 rows' },
+                        { value: '1000', label: '1,000 rows' },
+                        { value: '5000', label: '5,000 rows' },
+                        { value: '10000', label: '10,000 rows' },
+                      ]}
+                    />
                   </div>
 
                   <Button
@@ -347,13 +375,14 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
                 value={limit.toString()}
                 onChange={(e) => setLimit(parseInt(e.target.value))}
                 disabled={isExecuting}
-              >
-                <option value="100">100 rows</option>
-                <option value="500">500 rows</option>
-                <option value="1000">1,000 rows</option>
-                <option value="5000">5,000 rows</option>
-                <option value="10000">10,000 rows</option>
-              </Select>
+                options={[
+                  { value: '100', label: '100 rows' },
+                  { value: '500', label: '500 rows' },
+                  { value: '1000', label: '1,000 rows' },
+                  { value: '5000', label: '5,000 rows' },
+                  { value: '10000', label: '10,000 rows' },
+                ]}
+              />
             </div>
 
             <Button

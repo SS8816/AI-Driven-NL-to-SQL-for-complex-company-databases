@@ -8,7 +8,7 @@ export const config = {
   mapbox: {
     accessToken: import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '',
     defaultStyle: 'mapbox://styles/mapbox/dark-v11',
-    defaultCenter: { lng: -98.5795, lat: 39.8283 } as [number, number], // US center
+    defaultCenter: [-98.5795, 39.8283] as [number, number], // US center
     defaultZoom: 3,
   },
 
