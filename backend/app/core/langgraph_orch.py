@@ -137,12 +137,13 @@ def _extract_database_from_ddl(schema_ddl: str) -> str:
 
 # RAG SETUP - Load vector store at startup
 
+# Use absolute paths from settings (resolves from project root)
+DOCS_VECTORSTORE_PATH = settings.docs_vectorstore_path
+FUNCTION_VECTORSTORE_PATH = settings.function_vectorstore_path
+ERRORS_TXT_PATH = settings.errors_txt_path
 
-DOCS_VECTORSTORE_PATH = Path("athena_docs_vectorstore")  
-FUNCTION_VECTORSTORE_PATH = Path("vectorstores")  
-
-_docs_vectorstore = None  
-_function_vectorstore = None  
+_docs_vectorstore = None
+_function_vectorstore = None
 _embeddings = None
   
 def _get_docs_vectorstore():
@@ -457,6 +458,7 @@ def get_known_invalid_functions():
         'ARRAY_LENGTH': 'Use cardinality(array) instead',
         'ARRAY_TO_STRING': 'Use array_join(array, delimiter) instead',
         'STRING_TO_ARRAY': 'Use split(string, delimiter) instead',
+        'ARRAY_FLATTEN': 'Use flatten(array) instead (lowercase, single argument)',
         'UNNEST_WITH_ORDINALITY': 'Athena supports WITH ORDINALITY but syntax is different',
         
         # Date/Time - Common mistakes
@@ -715,12 +717,11 @@ def validate_sql_node(state: GraphState) -> Dict:
     print("-" * 80)
     
     # Load dynamic errors from errors.txt
-    errors_txt_path = Path("errors.txt")
     errors_txt_content = ""
-    
-    if errors_txt_path.exists():
+
+    if ERRORS_TXT_PATH.exists():
         try:
-            with open(errors_txt_path, 'r', encoding='utf-8') as f:
+            with open(ERRORS_TXT_PATH, 'r', encoding='utf-8') as f:
                 errors_txt_content = f.read()
             
             # Count errors in file
