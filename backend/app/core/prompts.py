@@ -37,20 +37,24 @@ UNNEST_EXAMPLES = """
 
 **Rule**: Alias column count MUST match struct field count EXACTLY, or use single alias for struct.
 
-❌ WRONG Examples:
--- Error: "Column alias list has 1 entries but 't' has 3 columns"
-CROSS JOIN UNNEST(vp."properties") AS lga  -- properties has 3 struct fields, needs 3 aliases OR parentheses
+❌ WRONG Examples (THESE CAUSE ERRORS!):
+-- Error: "Column alias list has 1 entries but 'lga' has 3 columns"
+CROSS JOIN UNNEST(vpa."lane_group_lane_associations") AS lga
+-- ❌ WRONG! lane_group_lane_associations has 3 struct fields: vpRange, fittedLane, interpolatedRoute
 
 -- Error: "Column alias list has 2 entries but 't' has 1 columns"
 CROSS JOIN UNNEST(simple_array) AS t(val1, val2)  -- simple_array is array<int> (1 field)
 
-✅ CORRECT Examples:
+✅ CORRECT Examples (USE THESE!):
 
--- Method 1: Single alias with parentheses (RECOMMENDED for structs)
-CROSS JOIN UNNEST(vp."properties") AS t(prop)  -- Then access: prop.field1, prop.field2, prop.field3
+-- For lane_group_lane_associations (3 struct fields):
+-- Method 1: Single alias (RECOMMENDED)
+CROSS JOIN UNNEST(vpa."lane_group_lane_associations") AS t(lga_item)
+-- Then access: lga_item.vpRange, lga_item.fittedLane, lga_item.interpolatedRoute
 
--- Method 2: Explicit field aliases (use when you want direct access)
-CROSS JOIN UNNEST(vp."properties") AS t(field1, field2, field3)  -- Direct access: field1, field2, field3
+-- Method 2: Explicit field names (3 aliases for 3 fields)
+CROSS JOIN UNNEST(vpa."lane_group_lane_associations") AS t(vpRange, fittedLane, interpolatedRoute)
+-- Direct access: vpRange, fittedLane, interpolatedRoute
 
 -- For simple array<int>
 CROSS JOIN UNNEST(simple_array) AS t(value)
@@ -59,9 +63,10 @@ CROSS JOIN UNNEST(simple_array) AS t(value)
 CROSS JOIN UNNEST(coordinates) AS t(coord)  -- Then access coord.x, coord.y
 
 **How to Determine Alias Count**:
-1. Check schema: array<struct<field1:type1, field2:type2, field3:type3>> → 3 fields
-2. Simple arrays (array<int>, array<varchar>) → 1 alias always
-3. Array of structs → Use 1 alias for whole struct (access via dot), OR N aliases for N fields
+1. Check schema for struct field count: array<struct<field1, field2, field3>> → COUNT = 3
+2. lane_group_lane_associations has 3 top-level fields: vpRange, fittedLane, interpolatedRoute → USE 1 OR 3 aliases
+3. Simple arrays (array<int>) → always 1 alias
+4. Array of structs → 1 alias (access via dot) OR N aliases (N = field count)
 """
 
 SYNTAX_VALIDATION_RULES = """
