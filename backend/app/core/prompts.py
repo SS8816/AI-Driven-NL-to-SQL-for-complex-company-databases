@@ -500,13 +500,21 @@ def create_sql_fixing_prompt(schema: str, query: str, broken_sql: str, error_mes
 
 {FUNCTION_COMPATIBILITY_RULES}
 
+### CRITICAL: NEVER USE THESE INVALID FUNCTIONS:
+- ST_GeometryFromJson, ST_GeomFromJson → Use from_geojson_geometry OR build WKT strings
+- array_flatten → Use flatten(array) instead
+- array_length → Use cardinality(array)
+- CAST row() to Geometry → Build WKT strings with FORMAT/array_join, then ST_GeometryFromText
+
 ### FIXING INSTRUCTIONS:
 1. Analyze the error message - it pinpoints the exact problem
 2. Review the rules above that relate to this error
-3. DO NOT repeat the same mistake
-4. Rewrite the ENTIRE query with the fix applied
-5. Ensure the corrected query follows ALL Athena syntax rules
-6. Generate ONLY the corrected SQL query - no explanations, no markdown
+3. DO NOT use any invalid functions from the list above
+4. For geometry conversion: Use array_join + transform + FORMAT to build WKT strings
+5. DO NOT repeat the same mistake
+6. Rewrite the ENTIRE query with the fix applied
+7. Ensure the corrected query follows ALL Athena syntax rules
+8. Generate ONLY the corrected SQL query - no explanations, no markdown
 
 ### CORRECTED SQL QUERY:
 """
@@ -594,15 +602,22 @@ The following documentation will most certainly help fix this specific error:
 {specific_guidance}
 
 
-###FIXING INSTRUCTIONS:
+### CRITICAL: NEVER USE THESE INVALID FUNCTIONS:
+- ST_GeometryFromJson, ST_GeomFromJson → Use from_geojson_geometry OR build WKT strings
+- array_flatten → Use flatten(array) instead
+- array_length → Use cardinality(array)
+- CAST row() to Geometry → Build WKT strings with FORMAT/array_join, then ST_GeometryFromText
+
+### FIXING INSTRUCTIONS:
 
 1. CHECK THE DOCUMENTATION ABOVE FIRST - it may contain the exact syntax you need
 2. Analyze the error message - it pinpoints the exact problem
-3. Review the rules that relate to this error
-4. DO NOT repeat the same mistake
-5. Rewrite the ENTIRE query with the fix applied
-6. Ensure the corrected query follows ALL Athena syntax rules
-7. Generate ONLY the corrected SQL query - no explanations, no markdown
+3. DO NOT use any invalid functions from the list above
+4. For geometry conversion: Use array_join + transform + FORMAT to build WKT strings
+5. DO NOT repeat the same mistake
+6. Rewrite the ENTIRE query with the fix applied
+7. Ensure the corrected query follows ALL Athena syntax rules
+8. Generate ONLY the corrected SQL query - no explanations, no markdown
 
 CORRECTED SQL QUERY:
 """

@@ -440,6 +440,8 @@ def get_known_invalid_functions():
         # Geospatial - Common mistakes
         'ST_COVERS': 'Not supported. Use ST_CONTAINS or ST_INTERSECTS instead',
         'ST_GEOGRAPHYFROMTEXT': 'Use ST_GeometryFromText + to_spherical_geography',
+        'ST_GEOMETRYFROMJSON': 'NOT SUPPORTED. Use from_geojson_geometry instead, or build WKT string manually',
+        'ST_GEOMFROMJSON': 'NOT SUPPORTED. Use from_geojson_geometry instead, or build WKT string manually',
         'ST_MAKEPOINT': 'Use ST_Point(longitude, latitude) instead',
         'ST_MAKELINE': 'Not supported. Build LINESTRING manually with ST_GeometryFromText',
         'ST_UNION_AGG': 'Use geometry_union_agg (different name in Athena)',
@@ -964,11 +966,28 @@ CREATE TABLE {ctas_table_name} AS
         }
 
 
+def _check_for_invalid_functions(sql: str) -> tuple[bool, list[str]]:
+    """Quick check for known invalid functions in SQL.
+    Returns: (has_invalid, list of invalid function names found)
+    """
+    invalid_funcs = get_known_invalid_functions()
+    found_invalid = []
+
+    # Extract functions from SQL
+    functions = extract_functions_from_sql(sql)
+
+    for func in functions:
+        if func.upper() in invalid_funcs:
+            found_invalid.append(func)
+
+    return (len(found_invalid) > 0, found_invalid)
+
+
 def fix_sql_node(state: GraphState) -> Dict:
     """Node: Fix SQL based on error with RAG enhancement."""
     retry_num = state["retries"] + 1
     log_llm_interaction("fix_sql_start", None, None, f"Retry {retry_num}: {state['error_message'][:200]}")
-    
+
     azure_config = {
         "api_key": settings.AZURE_OPENAI_API_KEY,
         "azure_endpoint": settings.AZURE_OPENAI_ENDPOINT,
@@ -1030,9 +1049,20 @@ def fix_sql_node(state: GraphState) -> Dict:
     
     raw_sql = response.choices[0].message.content
     fixed_sql = _format_sql_query(raw_sql)
-    
+
+    # CRITICAL: Check for invalid functions before returning
+    has_invalid, invalid_list = _check_for_invalid_functions(fixed_sql)
+    if has_invalid:
+        print(f"\n⚠️  WARNING: Fix node introduced invalid functions: {invalid_list}")
+        print(f"   These functions are NOT supported in Athena!")
+        # Add warning to error message so it gets passed to next retry
+        invalid_funcs_dict = get_known_invalid_functions()
+        invalid_details = [f"{func} -> {invalid_funcs_dict[func.upper()]}" for func in invalid_list]
+        fixed_sql = f"-- WARNING: Previous fix used invalid functions: {', '.join(invalid_list)}\n" + fixed_sql
+        print(f"   Alternatives: {invalid_details}")
+
     log_llm_interaction("fix_sql_complete", prompt, fixed_sql, f"Retry {retry_num}")
-    
+
     return {
         "generated_sql": fixed_sql,
         "retries": retry_num
