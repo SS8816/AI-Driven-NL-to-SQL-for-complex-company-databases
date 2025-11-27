@@ -31,6 +31,7 @@ from app.core.athena_client import AthenaClient, AthenaError
 from app.core.logger_config import log_llm_interaction, log_query_execution
 from app.core.cache_manager import CacheManager
 from app.core.ctas_utils import generate_ctas_name
+from app.core.parser import NestedSchemaParser
 
 
 #Helper Functions
@@ -160,8 +161,8 @@ def _get_docs_vectorstore():
     try:
         if _embeddings is None:
             _embeddings = AzureOpenAIEmbeddings(
-                api_key= settings.AZURE_OPENAI_API_KEY,
-                azure_endpoint = settings.AZURE_OPENAI_ENDPOINT,
+                api_key=settings.AZURE_OPENAI_API_KEY,
+                azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
                 azure_deployment="text-embedding-3-small",
                 api_version=settings.AZURE_OPENAI_API_VERSION
             )
@@ -194,8 +195,8 @@ def _get_function_vectorstore():
     try:
         if _embeddings is None:
             _embeddings = AzureOpenAIEmbeddings(
-                api_key = settings.AZURE_OPENAI_API_KEY,
-                azure_endpoint = settings.AZURE_OPENAI_ENDPOINT,
+                api_key=settings.AZURE_OPENAI_API_KEY,
+                azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
                 azure_deployment="text-embedding-3-small",
                 api_version=settings.AZURE_OPENAI_API_VERSION
             )
@@ -241,6 +242,27 @@ def _determine_optimal_k(nl_query: str, error_context: str = None) -> int:
     #     k = min(k + 1, 6)  # Cap at 6
     
     return k
+
+
+def _get_schema_summary(schema_ddl: str) -> str:
+    """
+    Parse schema DDL and create a token-optimized summary.
+    Shows table names, column names, and nested field previews.
+
+    Args:
+        schema_ddl: Full DDL string (CREATE EXTERNAL TABLE statements)
+
+    Returns:
+        Human-readable schema summary with nested field counts
+    """
+    try:
+        parser = NestedSchemaParser(schema_ddl)
+        parser.parse()
+        summary = parser.create_llm_summary()
+        return summary
+    except Exception as e:
+        print(f"⚠️  Warning: Failed to create schema summary: {str(e)}")
+        return ""  # Return empty string on failure, DDL will still be available
 
 
 class GraphState(TypedDict):
@@ -736,18 +758,24 @@ def validate_sql_node(state: GraphState) -> Dict:
     
     # Call LLM for syntax validation
     print("\n   Calling LLM for syntax validation...")
-    
+
+    # Get schema summary for better context
+    schema_summary = _get_schema_summary(state["final_schema"])
+    if schema_summary:
+        print(f"   Created schema summary ({len(schema_summary)} chars)")
+
     azure_config = {
         "api_key": settings.AZURE_OPENAI_API_KEY,
         "azure_endpoint": settings.AZURE_OPENAI_ENDPOINT,
         "azure_deployment": settings.AZURE_OPENAI_DEPLOYMENT,
         "api_version": settings.AZURE_OPENAI_API_VERSION
     }
-    
+
     syntax_prompt = create_syntax_validation_prompt(
         function_validated_sql=function_validated_sql,
         errors_txt_content=errors_txt_content,
-        schema=state["final_schema"]
+        schema=state["final_schema"],
+        schema_summary=schema_summary
     )
     
     log_llm_interaction(
@@ -1021,7 +1049,12 @@ def fix_sql_node(state: GraphState) -> Dict:
         except Exception as e:
             print(f"RAG (Fix) retrieval failed: {str(e)}")
             relevant_docs = []
-    
+
+    # Get schema summary for better context
+    schema_summary = _get_schema_summary(state["final_schema"])
+    if schema_summary:
+        print(f"   Created schema summary for fix ({len(schema_summary)} chars)")
+
     # RAG enhanced
     if relevant_docs:
         prompt = create_rag_sql_fixing_prompt(
@@ -1029,7 +1062,8 @@ def fix_sql_node(state: GraphState) -> Dict:
             query=state["nl_query"],
             broken_sql=state["generated_sql"],
             error_message=state["error_message"],
-            relevant_docs=relevant_docs
+            relevant_docs=relevant_docs,
+            schema_summary=schema_summary
         )
     else:
         # Fallback to original fixing prompt
@@ -1037,7 +1071,8 @@ def fix_sql_node(state: GraphState) -> Dict:
             schema=state["final_schema"],
             query=state["nl_query"],
             broken_sql=state["generated_sql"],
-            error_message=state["error_message"]
+            error_message=state["error_message"],
+            schema_summary=schema_summary
         )
     
     client = AzureOpenAI(**azure_config)
@@ -1055,11 +1090,10 @@ def fix_sql_node(state: GraphState) -> Dict:
     if has_invalid:
         print(f"\n⚠️  WARNING: Fix node introduced invalid functions: {invalid_list}")
         print(f"   These functions are NOT supported in Athena!")
-        # Add warning to error message so it gets passed to next retry
         invalid_funcs_dict = get_known_invalid_functions()
         invalid_details = [f"{func} -> {invalid_funcs_dict[func.upper()]}" for func in invalid_list]
-        fixed_sql = f"-- WARNING: Previous fix used invalid functions: {', '.join(invalid_list)}\n" + fixed_sql
         print(f"   Alternatives: {invalid_details}")
+        # Note: Not adding comment to SQL since it triggers validation blocker
 
     log_llm_interaction("fix_sql_complete", prompt, fixed_sql, f"Retry {retry_num}")
 

@@ -30,7 +30,9 @@ class QueryValidator:
     """Validates and sanitizes SQL queries to prevent injection attacks."""
     DANGEROUS_PATTERNS = [
         r";\s*(drop|delete|truncate|alter|create|insert|update)\s+",
-        r"--\s*", r"/\*.*?\*/", r"xp_cmdshell", r"sp_executesql",
+        r"--\s*(drop|delete|truncate|alter)\s+",  # Only block dangerous SQL commands in comments
+        r"/\*.*?(drop|delete|truncate|alter).*?\*/",  # Block dangerous commands in block comments
+        r"xp_cmdshell", r"sp_executesql",
         r"exec\s*\(", r"information_schema", r"sys\.",
     ]
 

@@ -145,44 +145,66 @@ SYNTAX_VALIDATION_RULES = """
 GEOMETRY_SPECIFIC_RULES = """
 ### GEOMETRY HANDLING (CRITICAL FOR GEOSPATIAL QUERIES):
 
-1. **COORDINATE SYSTEM CONVERSION:**
+⚠️  **MOST COMMON MISTAKES - READ THIS FIRST!** ⚠️
+
+1. **NEVER DECLARE TYPE "Geometry"**
+   - ❌ WRONG: `WITH results(id BIGINT, geom Geometry) AS ...`
+   - ❌ WRONG: `CAST(... AS Geometry)`
+   - ✅ CORRECT: Athena doesn't have a "Geometry" type! Use VARCHAR for WKT strings, then convert with ST_GeometryFromText
+
+2. **ST_UNION vs GEOMETRY_UNION_AGG - They are DIFFERENT!**
+   - ❌ WRONG: `ST_UNION(geometry_column)` - This takes TWO geometries, not one!
+   - ❌ WRONG: `ST_Union(geom)` - Not supported in Athena
+   - ✅ CORRECT: `geometry_union_agg(geometry_column)` - For aggregating multiple geometries into one
+   - ✅ CORRECT: `ST_Union(geom1, geom2)` - For merging exactly TWO geometries (but prefer geometry_union_agg for aggregation)
+
+3. **ST_LENGTH ONLY WORKS ON LINE_STRING/MULTI_LINE_STRING**
+   - ❌ WRONG: `ST_Length(to_spherical_geography(geom))` on GEOMETRY_COLLECTION
+   - ❌ WRONG: `ST_Length(to_spherical_geography(geom))` on POINT or POLYGON
+   - ✅ CORRECT: Use guard clauses:
+     ```sql
+     CASE
+       WHEN geometry IS NOT NULL AND NOT ST_IsEmpty(geometry) AND ST_Dimension(geometry) = 1
+         THEN ST_Length(to_spherical_geography(geometry))
+       ELSE 0
+     END
+     ```
+   - **ST_Dimension(geometry) = 1** means LINE_STRING (0=POINT, 1=LINESTRING, 2=POLYGON)
+
+4. **GEOMETRY_COLLECTION HANDLING:**
+   - ❌ WRONG: `ST_CollectionExtract(geom)` - NOT SUPPORTED in Athena
+   - ✅ CORRECT: Filter out GEOMETRY_COLLECTIONs using ST_Dimension or ST_IsEmpty checks
+   - ✅ CORRECT: Extract individual geometries using ST_GeometryN(geom, index) if needed
+
+5. **COORDINATE SYSTEM CONVERSION:**
    - ✅ USE: to_spherical_geography(geometry)
    - ❌ NEVER USE: ST_GeometryToSphericalGeography (not supported)
 
-2. **GEOMETRY CONSTRUCTION:**
-   - ✅ USE: ST_GeometryFromText(wkt_string)  -- (Trino/Athena canonical constructor for WKT).
-   - Use this wherever possible for WKT input. Do NOT use ST_GeomFromGeoJSON.
-   
+6. **GEOMETRY CONSTRUCTION:**
+   - ✅ USE: ST_GeometryFromText(wkt_string)  -- (Trino/Athena canonical constructor for WKT)
+   - ❌ NEVER USE: ST_GeomFromGeoJSON, ST_GeometryFromJson (not supported)
+   - Use this wherever possible for WKT input
 
-3. **WKT STRING FORMATTING:**
+7. **WKT STRING FORMATTING:**
    - Always use FORMAT function, never CONCAT
    - Pattern: FORMAT('LINESTRING(%s)', array_join(transform(coordinates, p -> FORMAT('%s %s', CAST(p[1] AS varchar), CAST(p[2] AS varchar))), ','))
    - This ensures proper WKT syntax for geometry output
 
-4. **GEOMETRY AGGREGATION:**
-   - ✅ USE: geometry_union_agg(geometry_column)
-   - ❌ NEVER USE: st_union_agg, ST_Union (not supported)
-   - Use for merging multiple geometries into one (e.g., merging lanegroups)
-
-5. **GEOMETRY OPERATIONS - LENGTH:**
-   - ST_Length ONLY supports LINE_STRING or MULTI_LINE_STRING
-   - MUST guard against: POINT, GEOMETRY_COLLECTION, POLYGON
-   - Example guard: WHERE geometry_type IS NOT NULL AND geometry_type IN ('LINE_STRING', 'MULTI_LINE_STRING')
-
-6. **FORBIDDEN GEOMETRY FUNCTIONS:**
-   - st_covers (not supported in Athena)
-   - geometry_type (not supported)
-   - st_collectionextract (not supported)
-
-7. **GEOMETRY TYPE PARAMETER RULES:**
+8. **GEOMETRY TYPE PARAMETER RULES:**
    - st_geometryn expects: st_geometryn(geometry, integer)
    - ❌ WRONG: st_geometryn(geometry, bigint)
-   - Cast if needed: st_geometryn(geom, CAST(index AS integer))
+   - ✅ CORRECT: st_geometryn(geom, CAST(index AS integer))
 
-8. **GROUP BY RESTRICTION:**
+9. **GROUP BY RESTRICTION:**
    - NEVER put geometry columns in GROUP BY clause
    - This will cause a query error
    - Group by IDs instead, then join geometry
+
+10. **FORBIDDEN GEOMETRY FUNCTIONS:**
+    - st_covers (not supported in Athena)
+    - geometry_type (not supported)
+    - st_collectionextract (not supported)
+    - ST_GeometryToSphericalGeography (not supported)
 """
 
 GUARD_CLAUSE_RULES = """
@@ -441,21 +463,22 @@ def create_sql_generation_prompt(schema: str, query: str, guardrails: str) -> st
     return prompt
 
 
-def create_sql_fixing_prompt(schema: str, query: str, broken_sql: str, error_message: str) -> str:
+def create_sql_fixing_prompt(schema: str, query: str, broken_sql: str, error_message: str, schema_summary: str = "") -> str:
     """
     Build adaptive SQL fixing prompt based on error type.
-    
+
     Args:
         schema: Full DDL of approved tables/columns
         query: Original user query
         broken_sql: The SQL that failed
         error_message: Exact error from Athena
-        
+        schema_summary: Token-optimized schema summary showing nested field counts
+
     Returns:
         Prompt with error-specific guidance
     """
-    
-    
+
+
     specific_guidance = ""
     import re
     for pattern, guidance in ERROR_PATTERNS.items():
@@ -468,8 +491,8 @@ def create_sql_fixing_prompt(schema: str, query: str, broken_sql: str, error_mes
             if pattern.lower() in error_message.lower():
                 specific_guidance = f"\n### SPECIFIC ERROR GUIDANCE:\n{guidance}\n"
                 break
-    
-    
+
+
     if not specific_guidance:
         specific_guidance = """
 ### GENERAL DEBUGGING GUIDANCE:
@@ -480,13 +503,31 @@ def create_sql_fixing_prompt(schema: str, query: str, broken_sql: str, error_mes
 - Ensure proper unnesting syntax for arrays of structs
 - Ensure this rule is being followed - "ST_Length only supports LINE_STRING or MULTI_LINE_STRING, got GEOMETRY_COLLECTION"
 """
-    
+
+    # Format schema summary section
+    schema_summary_section = ""
+    if schema_summary.strip():
+        schema_summary_section = f"""
+---
+
+## SCHEMA SUMMARY (For Quick Reference)
+
+{schema_summary}
+
+**UNNEST REMINDER:**
+- If column shows "(nested: field1, field2, field3)", it has 3 struct fields
+- Use EITHER: UNNEST(col) AS t(item) OR UNNEST(col) AS t(field1, field2, field3)
+- Mismatched alias count causes "MISMATCHED_COLUMN_ALIASES" error!
+"""
+
     prompt = f"""You are an expert AWS Athena SQL programmer. Your previous attempt to write a query failed. Analyze the error and write a corrected query.
 
 ### ORIGINAL USER QUESTION:
 {query}
 
-### DATABASE SCHEMA:
+{schema_summary_section}
+
+### FULL DATABASE SCHEMA:
 {schema}
 
 ### BROKEN SQL QUERY:
@@ -513,13 +554,14 @@ def create_sql_fixing_prompt(schema: str, query: str, broken_sql: str, error_mes
 
 ### FIXING INSTRUCTIONS:
 1. Analyze the error message - it pinpoints the exact problem
-2. Review the rules above that relate to this error
-3. DO NOT use any invalid functions from the list above
-4. For geometry conversion: Use array_join + transform + FORMAT to build WKT strings
-5. DO NOT repeat the same mistake
-6. Rewrite the ENTIRE query with the fix applied
-7. Ensure the corrected query follows ALL Athena syntax rules
-8. Generate ONLY the corrected SQL query - no explanations, no markdown
+2. If UNNEST-related error, check schema summary to verify field counts!
+3. Review the rules above that relate to this error
+4. DO NOT use any invalid functions from the list above
+5. For geometry conversion: Use array_join + transform + FORMAT to build WKT strings
+6. DO NOT repeat the same mistake
+7. Rewrite the ENTIRE query with the fix applied
+8. Ensure the corrected query follows ALL Athena syntax rules
+9. Generate ONLY the corrected SQL query - no explanations, no markdown
 
 ### CORRECTED SQL QUERY:
 """
@@ -533,30 +575,32 @@ def create_rag_sql_fixing_prompt(
     query: str,
     broken_sql: str,
     error_message: str,
-    relevant_docs: list
+    relevant_docs: list,
+    schema_summary: str = ""
 ) -> str:
     """
     Build RAG-enhanced SQL fixing prompt.
     Combines error patterns with dynamically retrieved documentation.
-    
+
     Args:
         schema: Full DDL of approved tables/columns
         query: Original user query
         broken_sql: The SQL that failed
         error_message: Exact error from Athena
         relevant_docs: List of Document objects from vector store retrieval
-        
+        schema_summary: Token-optimized schema summary showing nested field counts
+
     Returns:
         Complete prompt string for SQL fixing with RAG context
     """
-    
+
     # Format retrieved documentation
     if relevant_docs:
         doc_context = "\n\n".join([
             f"--- Relevant Documentation {i+1} ---\n{doc.page_content[:800]}"
             for i, doc in enumerate(relevant_docs[:3])
         ])
-        
+
         rag_section = f"""
 ### RELEVANT DOCUMENTATION FOR THIS ERROR:
 The following documentation will most certainly help fix this specific error:
@@ -567,7 +611,7 @@ The following documentation will most certainly help fix this specific error:
 """
     else:
         rag_section = ""
-    
+
     # Find specific error guidance from patterns
     specific_guidance = ""
     import re
@@ -580,7 +624,7 @@ The following documentation will most certainly help fix this specific error:
             if pattern.lower() in error_message.lower():
                 specific_guidance = f"\n### SPECIFIC ERROR GUIDANCE:\n{guidance}\n"
                 break
-    
+
     if not specific_guidance:
         specific_guidance = """
 ### GENERAL DEBUGGING GUIDANCE:
@@ -590,22 +634,50 @@ The following documentation will most certainly help fix this specific error:
 - Verify all column names match the schema exactly (case-sensitive)
 - Ensure proper unnesting syntax for arrays of structs
 """
-    
+
+    # Format schema summary section
+    schema_summary_section = ""
+    if schema_summary.strip():
+        schema_summary_section = f"""
+---
+
+## SCHEMA SUMMARY (For Quick Reference)
+
+{schema_summary}
+
+**UNNEST REMINDER:**
+- If column shows "(nested: field1, field2, field3)", it has 3 struct fields
+- Use EITHER: UNNEST(col) AS t(item) OR UNNEST(col) AS t(field1, field2, field3)
+- Mismatched alias count causes "MISMATCHED_COLUMN_ALIASES" error!
+"""
+
     prompt = f"""You are an expert AWS Athena SQL programmer. Your previous attempt to write a query failed. Analyze the error and write a corrected query.
 
 ### ORIGINAL USER QUESTION:
 {query}
 
+{schema_summary_section}
+
+### FULL DATABASE SCHEMA:
+{schema}
+
 ### BROKEN SQL QUERY:
 ```sql
 {broken_sql}
+```
 
+### DATABASE ERROR MESSAGE:
 {error_message}
 
 {rag_section}
 
 {specific_guidance}
 
+{CORE_ATHENA_SYNTAX_RULES}
+
+{GEOMETRY_SPECIFIC_RULES}
+
+{FUNCTION_COMPATIBILITY_RULES}
 
 ### CRITICAL: NEVER USE THESE INVALID FUNCTIONS:
 - ST_GeometryFromJson, ST_GeomFromJson → Use from_geojson_geometry OR build WKT strings
@@ -616,15 +688,16 @@ The following documentation will most certainly help fix this specific error:
 ### FIXING INSTRUCTIONS:
 
 1. CHECK THE DOCUMENTATION ABOVE FIRST - it may contain the exact syntax you need
-2. Analyze the error message - it pinpoints the exact problem
-3. DO NOT use any invalid functions from the list above
-4. For geometry conversion: Use array_join + transform + FORMAT to build WKT strings
-5. DO NOT repeat the same mistake
-6. Rewrite the ENTIRE query with the fix applied
-7. Ensure the corrected query follows ALL Athena syntax rules
-8. Generate ONLY the corrected SQL query - no explanations, no markdown
+2. If UNNEST-related error, check schema summary to verify field counts!
+3. Analyze the error message - it pinpoints the exact problem
+4. DO NOT use any invalid functions from the list above
+5. For geometry conversion: Use array_join + transform + FORMAT to build WKT strings
+6. DO NOT repeat the same mistake
+7. Rewrite the ENTIRE query with the fix applied
+8. Ensure the corrected query follows ALL Athena syntax rules
+9. Generate ONLY the corrected SQL query - no explanations, no markdown
 
-CORRECTED SQL QUERY:
+### CORRECTED SQL QUERY:
 """
     return prompt
 
@@ -763,20 +836,22 @@ CRITICAL:
 def create_syntax_validation_prompt(
     function_validated_sql: str,
     errors_txt_content: str,
-    schema: str
+    schema: str,
+    schema_summary: str = ""
 ) -> str:
     """
     Creates prompt for syntax-only validation.
-    
+
     Args:
         function_validated_sql: SQL after function validation
         errors_txt_content: Content from errors.txt (daily populated)
-        schema: Database schema
-        
+        schema: Database schema (full DDL)
+        schema_summary: Token-optimized schema summary showing nested field counts
+
     Returns:
         Syntax validation prompt
     """
-    
+
     # Format dynamic errors from errors.txt
     dynamic_errors_section = ""
     if errors_txt_content.strip():
@@ -789,20 +864,35 @@ def create_syntax_validation_prompt(
 
 These errors occurred in production. Check if your SQL might trigger them.
 """
-    
-    prompt = f"""You are an AWS Athena SQL syntax validator. 
+
+    # Format schema summary section
+    schema_summary_section = ""
+    if schema_summary.strip():
+        schema_summary_section = f"""
+---
+
+## SCHEMA SUMMARY (For Quick Reference)
+
+{schema_summary}
+
+CRITICAL: Use this summary to verify UNNEST alias counts!
+- If a column shows "(nested: field1, field2, field3)", it has 3 struct fields
+- Your UNNEST must have EITHER:
+  - Method 1: Single alias (recommended) - UNNEST(column) AS t(item)
+  - Method 2: Explicit aliases matching count - UNNEST(column) AS t(field1, field2, field3)
+"""
+
+    prompt = f"""You are an AWS Athena SQL syntax validator.
 
 CRITICAL INSTRUCTION: The SQL functions have ALREADY been validated in a previous step. DO NOT modify any functions or their usage. Your ONLY job is to fix SQL syntax/structure issues.
 
 ### SQL TO VALIDATE (Functions Already Validated):
 
-
----
-
-## KNOWN SYNTAX ERROR PATTERNS
 ```sql
 {function_validated_sql}
 ```
+
+---
 
 {SYNTAX_VALIDATION_RULES}
 
@@ -810,9 +900,29 @@ CRITICAL INSTRUCTION: The SQL functions have ALREADY been validated in a previou
 
 {UNNEST_EXAMPLES}
 
+{schema_summary_section}
+
+### FULL SCHEMA DDL:
+
 {schema}
 
+---
 
+## CRITICAL CHECK BEFORE RETURNING
+
+**MANDATORY UNNEST VALIDATION:**
+Before returning the SQL, you MUST:
+1. Find ALL UNNEST statements in the query
+2. For each UNNEST on a nested column:
+   a) Check the schema summary to count how many fields the column has
+   b) Verify the alias count matches OR uses single-alias method
+   c) If mismatch found, FIX IT immediately
+
+Example check:
+- SQL has: `UNNEST(vpa.lane_group_lane_associations) AS lga`
+- Schema shows: "lane_group_lane_associations (nested: vpRange, fittedLane, interpolatedRoute)" = 3 fields!
+- Alias count: 1 (just "lga")
+- **THIS IS WRONG!** Fix to: `UNNEST(vpa.lane_group_lane_associations) AS t(lga_item)`
 
 
 ## OUTPUT REQUIREMENTS
@@ -820,10 +930,10 @@ CRITICAL INSTRUCTION: The SQL functions have ALREADY been validated in a previou
 CRITICAL RULES:
 1. DO NOT change any functions (they're already validated)
 2. DO NOT change function parameters or usage
-3. ONLY look for and fix syntax issues.
+3. ONLY look for and fix syntax issues (especially UNNEST mismatches!)
 
 If syntax issues found:
-- Fix all structural problems
+- Fix all structural problems (especially UNNEST alias counts)
 - Keep all functions unchanged
 - Return corrected SQL
 
@@ -837,5 +947,5 @@ FORMAT:
 
 ### SYNTAX-VALIDATED SQL:
 """
-    
+
     return prompt
