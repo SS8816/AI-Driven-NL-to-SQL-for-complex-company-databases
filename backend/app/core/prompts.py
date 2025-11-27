@@ -2,11 +2,18 @@
 CORE_ATHENA_SYNTAX_RULES = """
 ### AWS ATHENA (TRINO SQL) CORE SYNTAX RULES:
 
-1. **UNNESTING ARRAYS OF STRUCTS:**
-   - MUST use: CROSS JOIN UNNEST(array_column) AS t(single_alias)
-   - The alias represents the ENTIRE struct, not individual fields
-   - ❌ WRONG: AS t(col1, col2, col3) - causes MISMATCHED_COLUMN_ALIASES error
-   - ✅ CORRECT: AS t(item) then access item.field_name
+1. **UNNESTING ARRAYS - CRITICAL ALIAS RULE:**
+   - For array<struct<field1, field2, field3>>:
+     ✅ Option 1 (RECOMMENDED): UNNEST(array_col) AS t(item) → access item.field1
+     ✅ Option 2 (EXPLICIT): UNNEST(array_col) AS t(field1, field2, field3) → access field1 directly
+     ❌ WRONG: UNNEST(array_col) AS t → Missing alias causes MISMATCHED_COLUMN_ALIASES
+     ❌ WRONG: UNNEST(array_col) AS lga → Only 1 alias for 3-field struct causes error
+
+   - For simple arrays (array<int>, array<varchar>):
+     ✅ CORRECT: UNNEST(array_col) AS t(value) → Single alias for single value
+     ❌ WRONG: UNNEST(array_col) AS t(val1, val2) → Too many aliases
+
+   **RULE**: Alias count MUST EXACTLY match the number of fields in the array element.
 
 2. **ACCESSING UNNESTED FIELDS:**
    - After unnesting, use: alias.field_name
@@ -21,42 +28,54 @@ CORE_ATHENA_SYNTAX_RULES = """
    - This prevents parsing errors with special characters
 
 4. **ARRAY CONCATENATION:**
-   - Use: concat(array1, array2)
-   - ❌ WRONG: array_concat (not supported)
+   - Use: concat(array1, array2) or flatten(array) for nested arrays
+   - ❌ WRONG: array_concat, array_flatten (not supported)
 """
 
 UNNEST_EXAMPLES = """
 ### CRITICAL: UNNEST Column Alias Matching
 
-**Rule**: Alias column count MUST match struct field count EXACTLY
+**Rule**: Alias column count MUST match struct field count EXACTLY, or use single alias for struct.
 
-❌ WRONG Examples:
--- Error: "Column alias list has 1 entries but 't' has 3 columns"
-CROSS JOIN UNNEST(vp."properties") AS t(prop)  -- properties is struct<a,b,c> (3 fields)
+❌ WRONG Examples (THESE CAUSE ERRORS!):
+-- Error: "Column alias list has 1 entries but 'lga' has 3 columns"
+CROSS JOIN UNNEST(vpa."lane_group_lane_associations") AS lga
+-- ❌ WRONG! lane_group_lane_associations has 3 struct fields: vpRange, fittedLane, interpolatedRoute
 
--- Error: "Column alias list has 2 entries but 't' has 1 columns"  
+-- Error: "Column alias list has 2 entries but 't' has 1 columns"
 CROSS JOIN UNNEST(simple_array) AS t(val1, val2)  -- simple_array is array<int> (1 field)
 
-✅ CORRECT Examples:
--- For struct<a:int, b:varchar, c:double>
-CROSS JOIN UNNEST(vp."properties") AS t(a, b, c)  
+✅ CORRECT Examples (USE THESE!):
+
+-- For lane_group_lane_associations (3 struct fields):
+-- Method 1: Single alias (RECOMMENDED)
+CROSS JOIN UNNEST(vpa."lane_group_lane_associations") AS t(lga_item)
+-- Then access: lga_item.vpRange, lga_item.fittedLane, lga_item.interpolatedRoute
+
+-- Method 2: Explicit field names (3 aliases for 3 fields)
+CROSS JOIN UNNEST(vpa."lane_group_lane_associations") AS t(vpRange, fittedLane, interpolatedRoute)
+-- Direct access: vpRange, fittedLane, interpolatedRoute
 
 -- For simple array<int>
 CROSS JOIN UNNEST(simple_array) AS t(value)
 
--- For array<struct<x:int, y:int>>
+-- For array<struct<x:int, y:int>> with single alias
 CROSS JOIN UNNEST(coordinates) AS t(coord)  -- Then access coord.x, coord.y
 
-**How to Find Field Count**:
-1. Check schema: struct<field1:type1, field2:type2, ...> → count fields
-2. Simple arrays (array<int>) → always 1 alias
-3. Array of structs (array<row(...)>) → 1 alias for the struct, then access .field
+**How to Determine Alias Count**:
+1. Check schema for struct field count: array<struct<field1, field2, field3>> → COUNT = 3
+2. lane_group_lane_associations has 3 top-level fields: vpRange, fittedLane, interpolatedRoute → USE 1 OR 3 aliases
+3. Simple arrays (array<int>) → always 1 alias
+4. Array of structs → 1 alias (access via dot) OR N aliases (N = field count)
 """
 
 SYNTAX_VALIDATION_RULES = """
 1. MISMATCHED_COLUMN_ALIASES
    Problem: UNNEST alias columns don't match array element structure
-   Fix: For array<row(a,b,c)>, use UNNEST(arr) AS t(a,b,c). For simple array, use UNNEST(arr) AS t(value)
+   Fix: For array<struct<a,b,c>> with 3 fields, use EITHER:
+        - UNNEST(arr) AS t(single_alias) then access single_alias.a, single_alias.b, single_alias.c
+        - OR UNNEST(arr) AS t(a, b, c) for direct field access
+   For simple arrays: UNNEST(arr) AS t(value) with exactly 1 alias
 
 2. EXPRESSION_NOT_AGGREGATE
    Problem: Non-aggregated column in SELECT without GROUP BY
@@ -274,11 +293,18 @@ OUTPUT_REQUIREMENTS = """
 
 ERROR_PATTERNS = {
     "MISMATCHED_COLUMN_ALIASES": """
-    You used incorrect UNNEST syntax. You cannot provide multiple aliases for array of structs.
-    
-    WRONG: CROSS JOIN UNNEST(array_col) AS t(col1, col2, col3)
-    CORRECT: CROSS JOIN UNNEST(array_col) AS t(single_alias)
-             Then access: single_alias.col1, single_alias.col2
+    UNNEST alias count doesn't match the array element's field count.
+
+    For array<struct<field1, field2, field3>> (3 fields):
+    WRONG: CROSS JOIN UNNEST(array_col) AS lga  -- Only 1 alias for 3 fields!
+
+    CORRECT Option 1: CROSS JOIN UNNEST(array_col) AS t(single_alias)
+                      Then access: single_alias.field1, single_alias.field2, single_alias.field3
+
+    CORRECT Option 2: CROSS JOIN UNNEST(array_col) AS t(field1, field2, field3)
+                      Direct access: field1, field2, field3
+
+    Count the struct fields in the schema and match aliases exactly!
     """,
     
     "INVALID_FUNCTION_ARGUMENT": """
@@ -408,7 +434,7 @@ def create_sql_generation_prompt(schema: str, query: str, guardrails: str) -> st
 5. Enclose all column names in double quotes
 6. Follow domain-specific business logic for vehicle path/lanegroup queries
 7. Generate ONLY the SQL query - no explanations, no markdown formatting
-9. Make sure this error doens't happen - [MISMATCHED_COLUMN_ALIASES], description: UNNEST alias column count doesn't match array element structure, solution: For array<row(a,b,c)>, use UNNEST(arr) AS t(a, b, c). For simple array, use UNNEST(arr) AS t(value). Count struct fields carefully!
+9. Make sure this error doesn't happen - [MISMATCHED_COLUMN_ALIASES]: UNNEST alias must match array element field count. For array<struct<a,b,c>> (3 fields), use EITHER: UNNEST(arr) AS t(single_alias) then access single_alias.a, single_alias.b, single_alias.c OR UNNEST(arr) AS t(a, b, c) for direct access. Count struct fields in schema EXACTLY!
 
 ### SQL QUERY:
 """
@@ -479,13 +505,21 @@ def create_sql_fixing_prompt(schema: str, query: str, broken_sql: str, error_mes
 
 {FUNCTION_COMPATIBILITY_RULES}
 
+### CRITICAL: NEVER USE THESE INVALID FUNCTIONS:
+- ST_GeometryFromJson, ST_GeomFromJson → Use from_geojson_geometry OR build WKT strings
+- array_flatten → Use flatten(array) instead
+- array_length → Use cardinality(array)
+- CAST row() to Geometry → Build WKT strings with FORMAT/array_join, then ST_GeometryFromText
+
 ### FIXING INSTRUCTIONS:
 1. Analyze the error message - it pinpoints the exact problem
 2. Review the rules above that relate to this error
-3. DO NOT repeat the same mistake
-4. Rewrite the ENTIRE query with the fix applied
-5. Ensure the corrected query follows ALL Athena syntax rules
-6. Generate ONLY the corrected SQL query - no explanations, no markdown
+3. DO NOT use any invalid functions from the list above
+4. For geometry conversion: Use array_join + transform + FORMAT to build WKT strings
+5. DO NOT repeat the same mistake
+6. Rewrite the ENTIRE query with the fix applied
+7. Ensure the corrected query follows ALL Athena syntax rules
+8. Generate ONLY the corrected SQL query - no explanations, no markdown
 
 ### CORRECTED SQL QUERY:
 """
@@ -573,15 +607,22 @@ The following documentation will most certainly help fix this specific error:
 {specific_guidance}
 
 
-###FIXING INSTRUCTIONS:
+### CRITICAL: NEVER USE THESE INVALID FUNCTIONS:
+- ST_GeometryFromJson, ST_GeomFromJson → Use from_geojson_geometry OR build WKT strings
+- array_flatten → Use flatten(array) instead
+- array_length → Use cardinality(array)
+- CAST row() to Geometry → Build WKT strings with FORMAT/array_join, then ST_GeometryFromText
+
+### FIXING INSTRUCTIONS:
 
 1. CHECK THE DOCUMENTATION ABOVE FIRST - it may contain the exact syntax you need
 2. Analyze the error message - it pinpoints the exact problem
-3. Review the rules that relate to this error
-4. DO NOT repeat the same mistake
-5. Rewrite the ENTIRE query with the fix applied
-6. Ensure the corrected query follows ALL Athena syntax rules
-7. Generate ONLY the corrected SQL query - no explanations, no markdown
+3. DO NOT use any invalid functions from the list above
+4. For geometry conversion: Use array_join + transform + FORMAT to build WKT strings
+5. DO NOT repeat the same mistake
+6. Rewrite the ENTIRE query with the fix applied
+7. Ensure the corrected query follows ALL Athena syntax rules
+8. Generate ONLY the corrected SQL query - no explanations, no markdown
 
 CORRECTED SQL QUERY:
 """

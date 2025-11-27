@@ -137,12 +137,13 @@ def _extract_database_from_ddl(schema_ddl: str) -> str:
 
 # RAG SETUP - Load vector store at startup
 
+# Use absolute paths from settings (resolves from project root)
+DOCS_VECTORSTORE_PATH = settings.docs_vectorstore_path
+FUNCTION_VECTORSTORE_PATH = settings.function_vectorstore_path
+ERRORS_TXT_PATH = settings.errors_txt_path
 
-DOCS_VECTORSTORE_PATH = Path("athena_docs_vectorstore")  
-FUNCTION_VECTORSTORE_PATH = Path("vectorstores")  
-
-_docs_vectorstore = None  
-_function_vectorstore = None  
+_docs_vectorstore = None
+_function_vectorstore = None
 _embeddings = None
   
 def _get_docs_vectorstore():
@@ -159,10 +160,10 @@ def _get_docs_vectorstore():
     try:
         if _embeddings is None:
             _embeddings = AzureOpenAIEmbeddings(
-                "api_key": settings.AZURE_OPENAI_API_KEY,
-                "azure_endpoint": settings.AZURE_OPENAI_ENDPOINT,
-                "azure_deployment": settings.AZURE_OPENAI_DEPLOYMENT,
-                "api_version": settings.AZURE_OPENAI_API_VERSION
+                api_key= settings.AZURE_OPENAI_API_KEY,
+                azure_endpoint = settings.AZURE_OPENAI_ENDPOINT,
+                azure_deployment="text-embedding-3-small",
+                api_version=settings.AZURE_OPENAI_API_VERSION
             )
         
         _docs_vectorstore = FAISS.load_local(
@@ -193,10 +194,10 @@ def _get_function_vectorstore():
     try:
         if _embeddings is None:
             _embeddings = AzureOpenAIEmbeddings(
-                "api_key": settings.AZURE_OPENAI_API_KEY,
-                "azure_endpoint": settings.AZURE_OPENAI_ENDPOINT,
-                "azure_deployment": settings.AZURE_OPENAI_DEPLOYMENT,
-                "api_version": settings.AZURE_OPENAI_API_VERSION
+                api_key = settings.AZURE_OPENAI_API_KEY,
+                azure_endpoint = settings.AZURE_OPENAI_ENDPOINT,
+                azure_deployment="text-embedding-3-small",
+                api_version=settings.AZURE_OPENAI_API_VERSION
             )
         
         _function_vectorstore = FAISS.load_local(
@@ -439,6 +440,8 @@ def get_known_invalid_functions():
         # Geospatial - Common mistakes
         'ST_COVERS': 'Not supported. Use ST_CONTAINS or ST_INTERSECTS instead',
         'ST_GEOGRAPHYFROMTEXT': 'Use ST_GeometryFromText + to_spherical_geography',
+        'ST_GEOMETRYFROMJSON': 'NOT SUPPORTED. Use from_geojson_geometry instead, or build WKT string manually',
+        'ST_GEOMFROMJSON': 'NOT SUPPORTED. Use from_geojson_geometry instead, or build WKT string manually',
         'ST_MAKEPOINT': 'Use ST_Point(longitude, latitude) instead',
         'ST_MAKELINE': 'Not supported. Build LINESTRING manually with ST_GeometryFromText',
         'ST_UNION_AGG': 'Use geometry_union_agg (different name in Athena)',
@@ -457,6 +460,7 @@ def get_known_invalid_functions():
         'ARRAY_LENGTH': 'Use cardinality(array) instead',
         'ARRAY_TO_STRING': 'Use array_join(array, delimiter) instead',
         'STRING_TO_ARRAY': 'Use split(string, delimiter) instead',
+        'ARRAY_FLATTEN': 'Use flatten(array) instead (lowercase, single argument)',
         'UNNEST_WITH_ORDINALITY': 'Athena supports WITH ORDINALITY but syntax is different',
         
         # Date/Time - Common mistakes
@@ -715,12 +719,11 @@ def validate_sql_node(state: GraphState) -> Dict:
     print("-" * 80)
     
     # Load dynamic errors from errors.txt
-    errors_txt_path = Path("errors.txt")
     errors_txt_content = ""
-    
-    if errors_txt_path.exists():
+
+    if ERRORS_TXT_PATH.exists():
         try:
-            with open(errors_txt_path, 'r', encoding='utf-8') as f:
+            with open(ERRORS_TXT_PATH, 'r', encoding='utf-8') as f:
                 errors_txt_content = f.read()
             
             # Count errors in file
@@ -963,11 +966,28 @@ CREATE TABLE {ctas_table_name} AS
         }
 
 
+def _check_for_invalid_functions(sql: str) -> tuple[bool, list[str]]:
+    """Quick check for known invalid functions in SQL.
+    Returns: (has_invalid, list of invalid function names found)
+    """
+    invalid_funcs = get_known_invalid_functions()
+    found_invalid = []
+
+    # Extract functions from SQL
+    functions = extract_functions_from_sql(sql)
+
+    for func in functions:
+        if func.upper() in invalid_funcs:
+            found_invalid.append(func)
+
+    return (len(found_invalid) > 0, found_invalid)
+
+
 def fix_sql_node(state: GraphState) -> Dict:
     """Node: Fix SQL based on error with RAG enhancement."""
     retry_num = state["retries"] + 1
     log_llm_interaction("fix_sql_start", None, None, f"Retry {retry_num}: {state['error_message'][:200]}")
-    
+
     azure_config = {
         "api_key": settings.AZURE_OPENAI_API_KEY,
         "azure_endpoint": settings.AZURE_OPENAI_ENDPOINT,
@@ -1029,9 +1049,20 @@ def fix_sql_node(state: GraphState) -> Dict:
     
     raw_sql = response.choices[0].message.content
     fixed_sql = _format_sql_query(raw_sql)
-    
+
+    # CRITICAL: Check for invalid functions before returning
+    has_invalid, invalid_list = _check_for_invalid_functions(fixed_sql)
+    if has_invalid:
+        print(f"\n⚠️  WARNING: Fix node introduced invalid functions: {invalid_list}")
+        print(f"   These functions are NOT supported in Athena!")
+        # Add warning to error message so it gets passed to next retry
+        invalid_funcs_dict = get_known_invalid_functions()
+        invalid_details = [f"{func} -> {invalid_funcs_dict[func.upper()]}" for func in invalid_list]
+        fixed_sql = f"-- WARNING: Previous fix used invalid functions: {', '.join(invalid_list)}\n" + fixed_sql
+        print(f"   Alternatives: {invalid_details}")
+
     log_llm_interaction("fix_sql_complete", prompt, fixed_sql, f"Retry {retry_num}")
-    
+
     return {
         "generated_sql": fixed_sql,
         "retries": retry_num

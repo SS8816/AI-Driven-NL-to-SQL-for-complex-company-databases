@@ -8,6 +8,10 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+# Project root directory (parent of backend/)
+PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
 
@@ -69,18 +73,23 @@ class Settings(BaseSettings):
 
     @property
     def schemas_path(self) -> Path:
-        """Get schemas directory as Path object"""
-        return Path(self.SCHEMAS_DIR)
+        """Get schemas directory as Path object (absolute from project root)"""
+        return PROJECT_ROOT / self.SCHEMAS_DIR
 
     @property
     def docs_vectorstore_path(self) -> Path:
-        """Get docs vectorstore directory as Path object"""
-        return Path(self.DOCS_VECTORSTORE_PATH)
+        """Get docs vectorstore directory as Path object (absolute from project root)"""
+        return PROJECT_ROOT / self.DOCS_VECTORSTORE_PATH
 
     @property
     def function_vectorstore_path(self) -> Path:
-        """Get function vectorstore directory as Path object"""
-        return Path(self.FUNCTION_VECTORSTORE_PATH)
+        """Get function vectorstore directory as Path object (absolute from project root)"""
+        return PROJECT_ROOT / self.FUNCTION_VECTORSTORE_PATH
+
+    @property
+    def errors_txt_path(self) -> Path:
+        """Get errors.txt file path (absolute from project root)"""
+        return PROJECT_ROOT / "errors.txt"
 
     @property
     def DATABASE_PATH(self) -> Path:
