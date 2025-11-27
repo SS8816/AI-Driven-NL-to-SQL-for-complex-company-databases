@@ -104,9 +104,9 @@ async def execute_query_stream(websocket: WebSocket):
             execution_mode=execution_mode
         )
 
-        # Generate full DDL for selected tables/columns
+        # Generate full DDL and schema summary for selected tables/columns
         try:
-            schema_ddl = schema_service.get_full_ddl_for_columns(
+            schema_ddl, schema_summary = schema_service.get_full_ddl_for_columns(
                 schema_name=schema_name,
                 selected_tables=selected_tables
             )
@@ -127,6 +127,7 @@ async def execute_query_stream(websocket: WebSocket):
             rule_category=rule_category,
             nl_query=nl_query,
             schema_ddl=schema_ddl,
+            schema_summary=schema_summary,
             guardrails=guardrails,
             execution_mode=execution_mode,
             username=username

@@ -318,16 +318,18 @@ Instructions:
         self,
         schema_name: str,
         selected_tables: Dict[str, List[str]]
-    ) -> str:
+    ) -> tuple[str, str]:
         """
-        Generate full DDL for selected tables/columns
+        Generate full DDL and schema summary for selected tables/columns
 
         Args:
             schema_name: Name of the schema
             selected_tables: Dict mapping table names to column lists
 
         Returns:
-            Full DDL string
+            Tuple of (full_ddl, schema_summary)
+            - full_ddl: Complete DDL string for selected columns
+            - schema_summary: Token-optimized summary showing nested field counts
 
         Raises:
             SchemaNotFoundError: If schema doesn't exist
@@ -355,14 +357,18 @@ Instructions:
 
             full_ddl = "\n\n".join(ddl_parts)
 
+            # Generate schema summary (once, to be reused in validation/fixing)
+            schema_summary = parser.create_llm_summary()
+
             app_logger.info(
-                "ddl_generated",
+                "ddl_and_summary_generated",
                 schema_name=schema_name,
                 table_count=len(selected_tables),
-                ddl_length=len(full_ddl)
+                ddl_length=len(full_ddl),
+                summary_length=len(schema_summary)
             )
 
-            return full_ddl
+            return full_ddl, schema_summary
 
         except SchemaNotFoundError:
             raise

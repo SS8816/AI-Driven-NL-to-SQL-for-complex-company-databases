@@ -51,8 +51,8 @@ async def execute_query(
             execution_mode=request.execution_mode
         )
 
-        # Generate full DDL for selected tables/columns
-        schema_ddl = schema_service.get_full_ddl_for_columns(
+        # Generate full DDL and schema summary for selected tables/columns
+        schema_ddl, schema_summary = schema_service.get_full_ddl_for_columns(
             schema_name=request.schema_name,
             selected_tables=request.selected_tables
         )
@@ -62,6 +62,7 @@ async def execute_query(
             rule_category=request.rule_category,
             nl_query=request.nl_query,
             schema_ddl=schema_ddl,
+            schema_summary=schema_summary,
             guardrails=request.guardrails or "",
             execution_mode=request.execution_mode,
             username=user.username

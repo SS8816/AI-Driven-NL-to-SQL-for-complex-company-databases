@@ -244,8 +244,8 @@ async def get_redacted_ddl(
         HTTPException 404: If schema not found
     """
     try:
-        # Get full DDL for selected columns
-        ddl = schema_service.get_full_ddl_for_columns(
+        # Get full DDL and summary for selected columns (summary not needed here)
+        ddl, _ = schema_service.get_full_ddl_for_columns(
             schema_name=request.schema_name,
             selected_tables=request.selected_tables
         )

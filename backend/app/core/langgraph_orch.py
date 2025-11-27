@@ -244,31 +244,11 @@ def _determine_optimal_k(nl_query: str, error_context: str = None) -> int:
     return k
 
 
-def _get_schema_summary(schema_ddl: str) -> str:
-    """
-    Parse schema DDL and create a token-optimized summary.
-    Shows table names, column names, and nested field previews.
-
-    Args:
-        schema_ddl: Full DDL string (CREATE EXTERNAL TABLE statements)
-
-    Returns:
-        Human-readable schema summary with nested field counts
-    """
-    try:
-        parser = NestedSchemaParser(schema_ddl)
-        parser.parse()
-        summary = parser.create_llm_summary()
-        return summary
-    except Exception as e:
-        print(f"⚠️  Warning: Failed to create schema summary: {str(e)}")
-        return ""  # Return empty string on failure, DDL will still be available
-
-
 class GraphState(TypedDict):
     """State that flows through LangGraph nodes."""
     nl_query: str
     final_schema: str
+    schema_summary: str
     guardrails: str
     rule_category: str
     database_name: str
@@ -276,7 +256,7 @@ class GraphState(TypedDict):
     validation_performed: Optional[bool]
     query_result: Optional[pd.DataFrame]
     s3_result_path: Optional[str]
-    ctas_table_name: Optional[str] 
+    ctas_table_name: Optional[str]
     error_message: Optional[str]
     retries: int
     execution_id: Optional[str]
@@ -758,11 +738,7 @@ def validate_sql_node(state: GraphState) -> Dict:
     
     # Call LLM for syntax validation
     print("\n   Calling LLM for syntax validation...")
-
-    # Get schema summary for better context
-    schema_summary = _get_schema_summary(state["final_schema"])
-    if schema_summary:
-        print(f"   Created schema summary ({len(schema_summary)} chars)")
+    print(f"   Using schema summary ({len(state['schema_summary'])} chars)")
 
     azure_config = {
         "api_key": settings.AZURE_OPENAI_API_KEY,
@@ -775,7 +751,7 @@ def validate_sql_node(state: GraphState) -> Dict:
         function_validated_sql=function_validated_sql,
         errors_txt_content=errors_txt_content,
         schema=state["final_schema"],
-        schema_summary=schema_summary
+        schema_summary=state["schema_summary"]
     )
     
     log_llm_interaction(
@@ -1050,10 +1026,8 @@ def fix_sql_node(state: GraphState) -> Dict:
             print(f"RAG (Fix) retrieval failed: {str(e)}")
             relevant_docs = []
 
-    # Get schema summary for better context
-    schema_summary = _get_schema_summary(state["final_schema"])
-    if schema_summary:
-        print(f"   Created schema summary for fix ({len(schema_summary)} chars)")
+    # Use schema summary from state (generated once, reused for all retries)
+    print(f"   Using schema summary for fix ({len(state['schema_summary'])} chars)")
 
     # RAG enhanced
     if relevant_docs:
@@ -1063,7 +1037,7 @@ def fix_sql_node(state: GraphState) -> Dict:
             broken_sql=state["generated_sql"],
             error_message=state["error_message"],
             relevant_docs=relevant_docs,
-            schema_summary=schema_summary
+            schema_summary=state["schema_summary"]
         )
     else:
         # Fallback to original fixing prompt
@@ -1072,7 +1046,7 @@ def fix_sql_node(state: GraphState) -> Dict:
             query=state["nl_query"],
             broken_sql=state["generated_sql"],
             error_message=state["error_message"],
-            schema_summary=schema_summary
+            schema_summary=state["schema_summary"]
         )
     
     client = AzureOpenAI(**azure_config)
@@ -1144,18 +1118,22 @@ langgraph_app = workflow.compile()
 def run_orchestrator(
     query: str,
     schema: str,
+    schema_summary: str,
     guardrails: str,
     rule_category: str,
     execution_mode: str = "normal"  #'normal', 'reexecute', 'force'
 ) -> Generator[str | Dict[str, Any], None, None]:
     """
     Run the orchestration workflow with progress updates.
-    
-    execution_mode:
-        - 'normal': Use cache if available
-        - 'reexecute': Use cached SQL but create new CTAS
-        - 'force': Ignore cache, generate new SQL + CTAS
-    
+
+    Args:
+        query: Natural language query
+        schema: Full DDL for selected schema
+        schema_summary: Token-optimized schema summary (generated once, reused)
+        guardrails: Additional constraints
+        rule_category: Rule category code
+        execution_mode: 'normal' (use cache), 'reexecute' (new CTAS), 'force' (regenerate SQL)
+
     Yields progress strings for UI display, then yields final result dict.
     """
     # Extract database name
@@ -1235,6 +1213,7 @@ def run_orchestrator(
         inputs = {
             "nl_query": query,
             "final_schema": schema,
+            "schema_summary": schema_summary,
             "guardrails": guardrails,
             "rule_category": rule_category,
             "database_name": database_name,
@@ -1307,6 +1286,7 @@ def run_orchestrator(
         inputs = {
             "nl_query": query,
             "final_schema": schema,
+            "schema_summary": schema_summary,
             "guardrails": guardrails,
             "rule_category": rule_category,
             "database_name": database_name,

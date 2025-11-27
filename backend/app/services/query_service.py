@@ -27,6 +27,7 @@ class QueryService:
         rule_category: str,
         nl_query: str,
         schema_ddl: str,
+        schema_summary: str,
         guardrails: str,
         execution_mode: Literal["normal", "reexecute", "force"],
         username: Optional[str] = None
@@ -38,6 +39,7 @@ class QueryService:
             rule_category: Rule category code
             nl_query: Natural language query
             schema_ddl: Full DDL for selected schema
+            schema_summary: Token-optimized schema summary (for validation/fixing)
             guardrails: Additional constraints
             execution_mode: Execution mode (normal/reexecute/force)
             username: Username executing the query
@@ -74,6 +76,7 @@ class QueryService:
             for update in run_orchestrator(
                 query=nl_query,
                 schema=schema_ddl,
+                schema_summary=schema_summary,
                 guardrails=guardrails,
                 rule_category=rule_category,
                 execution_mode=execution_mode
@@ -130,6 +133,7 @@ class QueryService:
         rule_category: str,
         nl_query: str,
         schema_ddl: str,
+        schema_summary: str,
         guardrails: str,
         execution_mode: Literal["normal", "reexecute", "force"],
         username: Optional[str] = None
@@ -141,6 +145,7 @@ class QueryService:
             rule_category: Rule category code
             nl_query: Natural language query
             schema_ddl: Full DDL for selected schema
+            schema_summary: Token-optimized schema summary
             guardrails: Additional constraints
             execution_mode: Execution mode (normal/reexecute/force)
             username: Username executing the query
@@ -159,6 +164,7 @@ class QueryService:
                 rule_category=rule_category,
                 nl_query=nl_query,
                 schema_ddl=schema_ddl,
+                schema_summary=schema_summary,
                 guardrails=guardrails,
                 execution_mode=execution_mode,
                 username=username
