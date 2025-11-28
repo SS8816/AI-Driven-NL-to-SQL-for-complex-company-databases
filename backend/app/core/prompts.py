@@ -352,6 +352,26 @@ QUERY_OPTIMIZATION_RULES = """
 
 ⚠️  **THESE RULES PREVENT TIMEOUTS AND ERRORS - FOLLOW STRICTLY** ⚠️
 
+0. **ALWAYS FILTER BY VERSION IN BASE CTEs (CRITICAL - REDUCES DATA BY 3X+)**
+   - ❌ WRONG: `FROM latest_vehiclepath vp WHERE vp."geometry" IS NOT NULL`
+   - ✅ CORRECT: `FROM latest_vehiclepath vp WHERE vp."version" = 888 AND vp."geometry" IS NOT NULL`
+   - **Why:** Tables named `latest_*` contain MULTIPLE versions (888, 751, 723, 667, etc.)
+   - **Rule:** ALWAYS add `WHERE table."version" = 888` to EVERY base CTE for tables: latest_vehiclepath, latest_lanesgroup, latest_vehicle_path_associations, latest_roadtopology
+   - **Impact:** Without this, you process 86M rows instead of 27M → guaranteed resource exhaustion
+   - **Example:**
+     ```sql
+     vp_base AS (
+       SELECT
+         vp."id" AS vp_id,
+         vp."iso_country_code" AS vp_country_code,
+         ...
+       FROM fastmap_prod2_v2_13_base.latest_vehiclepath vp
+       WHERE vp."version" = 888  -- ✅ MANDATORY!
+         AND vp."geometry" IS NOT NULL
+     )
+     ```
+   - **Apply to ALL latest_* tables in the query for consistency**
+
 1. **NEVER SELECT RAW GEOMETRY OBJECTS IN FINAL OUTPUT**
    - ❌ WRONG: `SELECT vp_geom AS vehicle_path_geom`
    - ❌ WRONG: `SELECT lg.geometry, vp.geometry`
@@ -602,9 +622,48 @@ ERROR_PATTERNS = {
     
     "group by.*geometry": """
     You cannot use geometry columns in GROUP BY.
-    
+
     Solution: Group by ID columns, then join geometry later.
     Or aggregate geometries using geometry_union_agg.
+    """,
+
+    "Query exhausted resources at this scale factor|exhausted resources": """
+    ❌ ERROR: Query ran out of memory/processing resources during execution.
+
+    **MOST COMMON CAUSE:** Missing version filter on latest_* tables!
+
+    IMMEDIATE FIX - Add version filters to ALL base CTEs:
+    ```sql
+    vp_base AS (
+      SELECT ...
+      FROM latest_vehiclepath vp
+      WHERE vp."version" = 888  -- ✅ ADD THIS!
+        AND vp."geometry" IS NOT NULL
+    ),
+    lg_map AS (
+      SELECT ...
+      FROM latest_vehicle_path_associations vpa
+      WHERE vpa."version" = 888  -- ✅ ADD THIS!
+        AND ...
+    ),
+    -- Apply to ALL latest_* tables!
+    ```
+
+    **Why this happens:**
+    - Tables named latest_* contain MULTIPLE versions (888, 751, 723, 667, 542, etc.)
+    - Without version filter: Processing 86M rows across all versions
+    - With version = 888: Processing only 27M rows (3x reduction)
+    - This is THE #1 cause of resource exhaustion
+
+    **Other causes (if version filter already present):**
+    1. Too many geometry unions per row (100s-1000s of LGs per VP)
+    2. Computing expensive operations (ST_Intersection) on massive datasets
+    3. Building WKT strings for millions of geometries
+
+    **Additional optimizations if version filter doesn't help:**
+    - Add LIMIT to final SELECT to test query logic first
+    - Simplify geometry operations (use ST_Distance instead of ST_Intersection)
+    - Add early filtering (reduce rows before expensive operations)
     """
 }
 
