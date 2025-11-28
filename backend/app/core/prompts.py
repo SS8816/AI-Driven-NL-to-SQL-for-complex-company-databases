@@ -185,6 +185,81 @@ GEOMETRY_SPECIFIC_RULES = """
    - ❌ NEVER USE: ST_GeomFromGeoJSON, ST_GeometryFromJson (not supported)
    - Use this wherever possible for WKT input
 
+6a. **CRITICAL: GEOJSON STRUCT TO GEOMETRY CONVERSION (YOUR SCHEMA USES THIS!)** ⚠️
+
+   **THE SCHEMA STORES GEOMETRY AS GEOJSON STRUCT, NOT NATIVE GEOMETRY TYPE!**
+
+   Schema structure:
+   - LINESTRING geometries: `struct<"type": varchar, "coordinates": array(array(double))>`
+   - POLYGON geometries: `struct<"type": varchar, "coordinates": array(array(array(double)))>`
+
+   **CORRECT PATTERN - Manual WKT Construction (ALWAYS USE THIS):**
+
+   For LINESTRING (e.g., vehicle paths):
+   ```sql
+   ST_GeometryFromText(
+     FORMAT('LINESTRING(%s)',
+       array_join(
+         transform(vp."geometry"."coordinates",
+           p -> FORMAT('%s %s', CAST(p[1] AS varchar), CAST(p[2] AS varchar))
+         ),
+         ','
+       )
+     )
+   ) AS vp_geom
+   ```
+
+   For POLYGON (e.g., lane groups):
+   ```sql
+   ST_GeometryFromText(
+     FORMAT('POLYGON((%s))',
+       array_join(
+         transform(lg."geometry"."coordinates"[1],
+           p -> FORMAT('%s %s', CAST(p[1] AS varchar), CAST(p[2] AS varchar))
+         ),
+         ','
+       )
+     )
+   ) AS lg_geom
+   ```
+
+   **WHY THIS PATTERN?**
+   - The struct is GeoJSON format, not native Geometry
+   - You MUST manually construct WKT from the coordinates array
+   - Then use ST_GeometryFromText() to convert WKT → Geometry type
+
+   **❌ DO NOT USE from_geojson_geometry() FOR GEOMETRY OPERATIONS!**
+   - ❌ WRONG: `from_geojson_geometry(json_format(vp."geometry")))`
+   - **Why:** from_geojson_geometry() returns **SphericalGeography**, NOT Geometry!
+   - This causes errors: "Unexpected parameters (SphericalGeography) for function geometry_union_agg. Expected: geometry_union_agg(geometry)"
+
+   **WHEN can you use from_geojson_geometry()?**
+   - ✅ ONLY when immediately converting to SphericalGeography for distance calculations:
+     ```sql
+     ST_Distance(
+       from_geojson_geometry(json_format(vp."geometry")),
+       from_geojson_geometry(json_format(lg."geometry"))
+     )
+     ```
+   - ✅ NEVER use it if you need Geometry type for: geometry_union_agg, ST_Intersection, ST_AsText
+
+   **TYPE COMPATIBILITY CHART:**
+   ```
+   Function                    Accepts Geometry?  Accepts SphericalGeography?
+   -------------------------------------------------------------------------
+   geometry_union_agg()        ✅ YES            ❌ NO (ERROR!)
+   ST_Intersection()           ✅ YES            ❌ NO (ERROR!)
+   ST_AsText()                 ✅ YES            ❌ NO (ERROR!)
+   to_spherical_geography()    ✅ YES            ❌ NO (already is!)
+   ST_Distance()               ❌ NO             ✅ YES
+   ST_Length()                 ❌ NO             ✅ YES
+   ```
+
+   **RULE SUMMARY:**
+   1. For ANY geometry operation that needs Geometry type → Use manual WKT construction pattern above
+   2. For distance/length calculations → Can use from_geojson_geometry() directly (returns SphericalGeography)
+   3. NEVER pass struct directly to geometry functions → Will error "Unexpected parameters (row(...))"
+
 7. **WKT STRING FORMATTING:**
    - Always use FORMAT function, never CONCAT
    - Pattern: FORMAT('LINESTRING(%s)', array_join(transform(coordinates, p -> FORMAT('%s %s', CAST(p[1] AS varchar), CAST(p[2] AS varchar))), ','))
@@ -434,6 +509,79 @@ ERROR_PATTERNS = {
     - st_geometryn expects INTEGER, not BIGINT: CAST(value AS integer)
     - SphericalGeography type errors: check you're using to_spherical_geography correctly
     - Geometry type incompatibility: verify input geometry type matches function requirements
+    """,
+
+    "Unexpected parameters \\(row\\(.*\\)\\) for function geometry_union_agg": """
+    ❌ ERROR: You passed a raw GeoJSON STRUCT to geometry_union_agg, which expects Geometry type!
+
+    WRONG: geometry_union_agg(lg."geometry")  -- This is a struct, not Geometry!
+
+    CORRECT: First convert struct → Geometry using manual WKT construction:
+    ```sql
+    geometry_union_agg(
+      ST_GeometryFromText(
+        FORMAT('POLYGON((%s))',
+          array_join(
+            transform(lg."geometry"."coordinates"[1],
+              p -> FORMAT('%s %s', CAST(p[1] AS varchar), CAST(p[2] AS varchar))
+            ),
+            ','
+          )
+        )
+      )
+    )
+    ```
+
+    See GEOMETRY_SPECIFIC_RULES section 6a for the correct pattern!
+    """,
+
+    "Unexpected parameters \\(SphericalGeography\\) for function geometry_union_agg": """
+    ❌ ERROR: You used from_geojson_geometry() which returns SphericalGeography, not Geometry!
+
+    WRONG: geometry_union_agg(from_geojson_geometry(...))  -- Returns SphericalGeography!
+
+    CORRECT: Use manual WKT construction to get Geometry type:
+    ```sql
+    geometry_union_agg(
+      ST_GeometryFromText(
+        FORMAT('POLYGON((%s))',
+          array_join(
+            transform(lg."geometry"."coordinates"[1],
+              p -> FORMAT('%s %s', CAST(p[1] AS varchar), CAST(p[2] AS varchar))
+            ),
+            ','
+          )
+        )
+      )
+    )
+    ```
+
+    Remember: from_geojson_geometry() is ONLY for distance calculations (ST_Distance, ST_Length).
+    For geometry operations (geometry_union_agg, ST_Intersection, ST_AsText), use manual WKT construction!
+    """,
+
+    "Unexpected parameters \\(SphericalGeography\\) for function st_astext": """
+    ❌ ERROR: You passed SphericalGeography to ST_AsText, which expects Geometry type!
+
+    WRONG: ST_AsText(from_geojson_geometry(...))  -- from_geojson_geometry returns SphericalGeography!
+
+    CORRECT: Use manual WKT construction:
+    ```sql
+    ST_AsText(
+      ST_GeometryFromText(
+        FORMAT('LINESTRING(%s)',
+          array_join(
+            transform(vp."geometry"."coordinates",
+              p -> FORMAT('%s %s', CAST(p[1] AS varchar), CAST(p[2] AS varchar))
+            ),
+            ','
+          )
+        )
+      )
+    )
+    ```
+
+    from_geojson_geometry() should NEVER be used with ST_AsText!
     """,
     
     "Function .* not registered": """
