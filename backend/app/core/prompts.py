@@ -272,6 +272,106 @@ DOMAIN_SPECIFIC_RULES = """
      * Guard against null geometries on both sides
 """
 
+QUERY_OPTIMIZATION_RULES = """
+### QUERY PERFORMANCE & OPTIMIZATION (CRITICAL FOR LARGE DATASETS):
+
+⚠️  **THESE RULES PREVENT TIMEOUTS AND ERRORS - FOLLOW STRICTLY** ⚠️
+
+1. **NEVER SELECT RAW GEOMETRY OBJECTS IN FINAL OUTPUT**
+   - ❌ WRONG: `SELECT vp_geom AS vehicle_path_geom`
+   - ❌ WRONG: `SELECT lg.geometry, vp.geometry`
+   - ✅ CORRECT: `SELECT ST_AsText(vp_geom) AS vehicle_path_wkt`
+   - **Why:** CTAS cannot store Geometry type → causes "Unsupported Hive type: Geometry" error
+   - **Rule:** ONLY use ST_AsText() for geometry columns in final SELECT
+
+2. **NEVER CREATE ARRAYS OF WKT STRINGS IN INTERMEDIATE CTEs**
+   - ❌ WRONG:
+     ```sql
+     array_agg(DISTINCT FORMAT('LINESTRING(%s)', array_join(...))) AS vpa_wkts
+     array_agg(DISTINCT FORMAT('POLYGON(%s)', ...)) AS lg_wkts
+     ```
+   - ✅ CORRECT:
+     ```sql
+     array_agg(DISTINCT vpa_id) AS vpa_ids  -- Store IDs only
+     ```
+   - **Why:** WKT arrays consume gigabytes (1000s of 5KB strings per row) → causes timeouts
+   - **Rule:** In intermediate CTEs, aggregate IDs only. Single WKT columns in final output are fine.
+
+3. **COMPUTE EXPENSIVE GEOMETRY OPERATIONS ONCE, REUSE EVERYWHERE**
+   - ❌ WRONG: Computing ST_Intersection multiple times:
+     ```sql
+     SELECT
+       ST_Length(to_spherical_geography(ST_Intersection(a, b))),  -- Computed
+     WHERE
+       ST_Intersection(a, b) IS NOT NULL  -- Computed again!
+       AND ST_Dimension(ST_Intersection(a, b)) = 1  -- Computed again!
+     ```
+   - ✅ CORRECT: Store in CTE, reference it:
+     ```sql
+     WITH intersections AS (
+       SELECT
+         vp_id,
+         ST_Intersection(vp_geom, lg_geom) AS int_geom
+       FROM ...
+     ),
+     metrics AS (
+       SELECT
+         vp_id,
+         int_geom,  -- Just reference it
+         CASE
+           WHEN int_geom IS NOT NULL
+                AND NOT ST_IsEmpty(int_geom)
+                AND ST_Dimension(int_geom) = 1
+             THEN ST_Length(to_spherical_geography(int_geom))
+           ELSE 0.0
+         END AS overlap_length
+       FROM intersections
+     )
+     ```
+   - **Rule:** Expensive operations (ST_Intersection, ST_Union, geometry_union_agg) → compute once in CTE
+
+4. **STRUCTURE: STORE IDS IN INTERMEDIATE CTEs, MATERIALIZE WKT IN FINAL OUTPUT**
+   - ✅ CORRECT Pattern:
+     ```sql
+     -- Intermediate: IDs only
+     vpa_mapping AS (
+       SELECT
+         vp_id,
+         array_agg(DISTINCT vpa_id) AS vpa_ids  -- Small
+       GROUP BY vp_id
+     ),
+
+     -- Intermediate: Union geometry for operations
+     lg_unions AS (
+       SELECT
+         vp_id,
+         geometry_union_agg(lg_geom) AS lg_union_geom  -- Keep as geometry
+       GROUP BY vp_id
+     ),
+
+     -- Final output: Convert to WKT
+     SELECT
+       vp_id,
+       ST_AsText(vp_geom) AS vehicle_path_wkt,  -- Single WKT per row ✅
+       ST_AsText(lg_union_geom) AS lanegroup_wkt,  -- Single WKT per row ✅
+       vpa_ids  -- Array of IDs from intermediate ✅
+     ```
+
+5. **FILTER NULL GEOMETRIES EARLY IN BASE CTEs**
+   - ✅ Add to base table queries:
+     ```sql
+     FROM latest_vehiclepath vp
+     WHERE vp.geometry IS NOT NULL  -- Filter early
+     ```
+   - **Why:** Reduces rows through expensive geometry operations
+   - **Rule:** Add WHERE geometry IS NOT NULL to base CTEs before joins/operations
+
+6. **AVOID REDUNDANT COLUMNS IN INTERMEDIATE AGGREGATIONS**
+   - ❌ WRONG: Aggregating data already available elsewhere
+   - ✅ CORRECT: Only aggregate what's needed for filtering/joins
+   - Example: Don't aggregate country_codes if they're already in the base table
+"""
+
 VERSION_PARTITION_RULES = """
 ### VERSION AND PARTITION FILTERING (PERFORMANCE CRITICAL):
 
@@ -432,7 +532,7 @@ def create_sql_generation_prompt(schema: str, query: str, guardrails: str) -> st
 ### USER-PROVIDED GUARDRAILS:
 {guardrails if guardrails else "No specific guardrails provided."}
 
-{MANDATORY_CONTEXT_COLUMNS} 
+{MANDATORY_CONTEXT_COLUMNS}
 
 {CORE_ATHENA_SYNTAX_RULES}
 
@@ -443,6 +543,8 @@ def create_sql_generation_prompt(schema: str, query: str, guardrails: str) -> st
 {FUNCTION_COMPATIBILITY_RULES}
 
 {DOMAIN_SPECIFIC_RULES}
+
+{QUERY_OPTIMIZATION_RULES}
 
 {VERSION_PARTITION_RULES}
 
@@ -546,6 +648,8 @@ def create_sql_fixing_prompt(schema: str, query: str, broken_sql: str, error_mes
 
 {FUNCTION_COMPATIBILITY_RULES}
 
+{QUERY_OPTIMIZATION_RULES}
+
 ### CRITICAL: NEVER USE THESE INVALID FUNCTIONS:
 - ST_GeometryFromJson, ST_GeomFromJson → Use from_geojson_geometry OR build WKT strings
 - array_flatten → Use flatten(array) instead
@@ -555,13 +659,14 @@ def create_sql_fixing_prompt(schema: str, query: str, broken_sql: str, error_mes
 ### FIXING INSTRUCTIONS:
 1. Analyze the error message - it pinpoints the exact problem
 2. If UNNEST-related error, check schema summary to verify field counts!
-3. Review the rules above that relate to this error
-4. DO NOT use any invalid functions from the list above
-5. For geometry conversion: Use array_join + transform + FORMAT to build WKT strings
-6. DO NOT repeat the same mistake
-7. Rewrite the ENTIRE query with the fix applied
-8. Ensure the corrected query follows ALL Athena syntax rules
-9. Generate ONLY the corrected SQL query - no explanations, no markdown
+3. If timeout or performance error, apply QUERY OPTIMIZATION RULES above!
+4. Review the rules above that relate to this error
+5. DO NOT use any invalid functions from the list above
+6. For geometry conversion: Use array_join + transform + FORMAT to build WKT strings
+7. DO NOT repeat the same mistake
+8. Rewrite the ENTIRE query with the fix applied
+9. Ensure the corrected query follows ALL Athena syntax rules
+10. Generate ONLY the corrected SQL query - no explanations, no markdown
 
 ### CORRECTED SQL QUERY:
 """
@@ -679,6 +784,8 @@ The following documentation will most certainly help fix this specific error:
 
 {FUNCTION_COMPATIBILITY_RULES}
 
+{QUERY_OPTIMIZATION_RULES}
+
 ### CRITICAL: NEVER USE THESE INVALID FUNCTIONS:
 - ST_GeometryFromJson, ST_GeomFromJson → Use from_geojson_geometry OR build WKT strings
 - array_flatten → Use flatten(array) instead
@@ -689,13 +796,14 @@ The following documentation will most certainly help fix this specific error:
 
 1. CHECK THE DOCUMENTATION ABOVE FIRST - it may contain the exact syntax you need
 2. If UNNEST-related error, check schema summary to verify field counts!
-3. Analyze the error message - it pinpoints the exact problem
-4. DO NOT use any invalid functions from the list above
-5. For geometry conversion: Use array_join + transform + FORMAT to build WKT strings
-6. DO NOT repeat the same mistake
-7. Rewrite the ENTIRE query with the fix applied
-8. Ensure the corrected query follows ALL Athena syntax rules
-9. Generate ONLY the corrected SQL query - no explanations, no markdown
+3. If timeout or performance error, apply QUERY OPTIMIZATION RULES above!
+4. Analyze the error message - it pinpoints the exact problem
+5. DO NOT use any invalid functions from the list above
+6. For geometry conversion: Use array_join + transform + FORMAT to build WKT strings
+7. DO NOT repeat the same mistake
+8. Rewrite the ENTIRE query with the fix applied
+9. Ensure the corrected query follows ALL Athena syntax rules
+10. Generate ONLY the corrected SQL query - no explanations, no markdown
 
 ### CORRECTED SQL QUERY:
 """
