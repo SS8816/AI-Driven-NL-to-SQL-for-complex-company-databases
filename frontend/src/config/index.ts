@@ -4,12 +4,11 @@ export const config = {
   wsBaseUrl: import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8000',
   apiPrefix: '/api/v1',
 
-  // Mapbox Configuration
-  mapbox: {
-    accessToken: import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '',
-    defaultStyle: 'mapbox://styles/mapbox/dark-v11',
-    defaultCenter: [-98.5795, 39.8283] as [number, number], // US center
-    defaultZoom: 3,
+  // HERE Maps Configuration
+  here: {
+    apiKey: import.meta.env.VITE_HERE_API_KEY || '',
+    defaultCenter: { lat: 39.8283, lng: -98.5795 }, // US center
+    defaultZoom: 5,
   },
 
   // Application Settings

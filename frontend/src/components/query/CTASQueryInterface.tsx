@@ -425,11 +425,57 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
         </TabPanel>
       </Card>
 
-      {/* Query Results */}
-      {queryResult && (
+      {/* Query Results - Stats & Actions (Always Visible) */}
+      {queryResult && queryResult.success && (
+        <Card title="Query Summary" subtitle={`${queryResult.row_count.toLocaleString()} rows returned`}>
+          <div className="space-y-4">
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 bg-light-sidebar dark:bg-dark-sidebar rounded-lg">
+                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-1">
+                  <Database className="w-4 h-4" />
+                  <span className="text-xs">Rows Returned</span>
+                </div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {queryResult.row_count.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="p-3 bg-light-sidebar dark:bg-dark-sidebar rounded-lg">
+                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-1">
+                  <Clock className="w-4 h-4" />
+                  <span className="text-xs">Execution Time</span>
+                </div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {formatExecutionTime(queryResult.execution_time_ms / 1000)}
+                </div>
+              </div>
+            </div>
+
+            {/* View on Maps Button */}
+            {queryResult.columns?.some(col =>
+              col.toLowerCase().includes('wkt') ||
+              col.toLowerCase().includes('geometry') ||
+              col.toLowerCase().includes('geom')
+            ) && queryResult.rows && queryResult.rows.length > 0 && (
+              <Button
+                onClick={() => setShowMap(!showMap)}
+                variant={showMap ? 'primary' : 'secondary'}
+                size="sm"
+              >
+                <MapPin className="w-4 h-4 mr-2" />
+                {showMap ? 'Hide' : 'View on'} Map
+              </Button>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* Query Results - Data Table (Collapsible) */}
+      {queryResult && queryResult.success && queryResult.rows && queryResult.rows.length > 0 && (
         <Card
-          title="Query Results"
-          subtitle={showQueryResults ? `${queryResult.row_count.toLocaleString()} rows - Click to collapse` : `${queryResult.row_count.toLocaleString()} rows - Click to expand`}
+          title="Query Data"
+          subtitle={showQueryResults ? `Showing ${queryResult.rows.length} rows - Click to collapse` : `${queryResult.rows.length} rows - Click to expand`}
           headerAction={
             <Button
               variant="ghost"
@@ -441,91 +487,48 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
           }
         >
           {showQueryResults && (
-            <>
-              {queryResult.success ? (
-                <div className="space-y-4">
-                  {/* Stats */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 bg-dark-sidebar rounded-lg">
-                      <div className="flex items-center gap-2 text-gray-400 mb-1">
-                        <Database className="w-4 h-4" />
-                        <span className="text-xs">Rows Returned</span>
-                      </div>
-                      <div className="text-2xl font-bold text-gray-100">
-                        {queryResult.row_count.toLocaleString()}
-                      </div>
-                    </div>
-
-                    <div className="p-3 bg-dark-sidebar rounded-lg">
-                      <div className="flex items-center gap-2 text-gray-400 mb-1">
-                        <Clock className="w-4 h-4" />
-                        <span className="text-xs">Execution Time</span>
-                      </div>
-                      <div className="text-2xl font-bold text-gray-100">
-                        {formatExecutionTime(queryResult.execution_time_ms / 1000)}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* View on Maps Button */}
-                  {queryResult.columns?.some(col =>
-                    col.toLowerCase().includes('wkt') ||
-                    col.toLowerCase().includes('geometry') ||
-                    col.toLowerCase().includes('geom')
-                  ) && queryResult.rows && queryResult.rows.length > 0 && (
-                    <Button
-                      onClick={() => setShowMap(!showMap)}
-                      variant={showMap ? 'primary' : 'secondary'}
-                      size="sm"
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-light-border dark:border-dark-border">
+                    {queryResult.columns?.map((col) => (
+                      <th
+                        key={col}
+                        className="text-left p-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap"
+                      >
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {queryResult.rows.map((row, idx) => (
+                    <tr
+                      key={idx}
+                      className="border-b border-light-border dark:border-dark-border hover:bg-light-hover dark:hover:bg-dark-hover"
                     >
-                      <MapPin className="w-4 h-4 mr-2" />
-                      {showMap ? 'Hide' : 'View on'} Map
-                    </Button>
-                  )}
-
-                  {/* Data Table */}
-                  {queryResult.rows && queryResult.rows.length > 0 && (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-dark-border">
-                            {queryResult.columns?.map((col) => (
-                              <th
-                                key={col}
-                                className="text-left p-3 font-medium text-gray-300 whitespace-nowrap"
-                              >
-                                {col}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {queryResult.rows.map((row, idx) => (
-                            <tr
-                              key={idx}
-                              className="border-b border-dark-border hover:bg-dark-hover"
-                            >
-                              {queryResult.columns?.map((col) => (
-                                <td key={col} className="p-3 text-gray-400 font-mono text-xs max-w-xs truncate" title={String(row[col] ?? 'NULL')}>
-                                  {truncateCell(row[col], 100)}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="p-6 text-center">
-                  <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-                  <p className="text-gray-300 font-medium">Query Failed</p>
-                  <p className="text-gray-500 text-sm mt-2">{queryResult.error}</p>
-                </div>
-              )}
-            </>
+                      {queryResult.columns?.map((col) => (
+                        <td key={col} className="p-3 text-gray-600 dark:text-gray-400 font-mono text-xs max-w-xs truncate" title={String(row[col] ?? 'NULL')}>
+                          {truncateCell(row[col], 100)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
+        </Card>
+      )}
+
+      {/* Query Error */}
+      {queryResult && !queryResult.success && (
+        <Card title="Query Failed">
+          <div className="p-6 text-center">
+            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+            <p className="text-gray-700 dark:text-gray-300 font-medium">Query Execution Failed</p>
+            <p className="text-gray-500 dark:text-gray-500 text-sm mt-2">{queryResult.error}</p>
+          </div>
         </Card>
       )}
 
