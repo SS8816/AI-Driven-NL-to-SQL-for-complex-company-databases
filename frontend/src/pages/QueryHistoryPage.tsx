@@ -48,7 +48,7 @@ export function QueryHistoryPage() {
           {data.items.map((query) => (
             <div
               key={query.id}
-              className="p-4 bg-dark-sidebar rounded-lg border border-dark-border hover:border-primary-500/30 transition-all"
+              className="p-4 bg-light-sidebar dark:bg-dark-sidebar rounded-lg border border-light-border dark:border-dark-border hover:border-primary-500/30 transition-all"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -62,15 +62,15 @@ export function QueryHistoryPage() {
                         className={`w-5 h-5 ${
                           query.is_bookmarked
                             ? 'fill-warning text-warning'
-                            : 'text-gray-500 hover:text-warning'
+                            : 'text-gray-500 dark:text-gray-500 hover:text-warning'
                         }`}
                       />
                     </button>
 
                     <div className="flex-1">
-                      <p className="text-gray-100 mb-2">{query.nl_query}</p>
+                      <p className="text-gray-900 dark:text-gray-100 mb-2">{query.nl_query}</p>
 
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
                         <div className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {formatRelativeTime(query.created_at)}
@@ -98,11 +98,11 @@ export function QueryHistoryPage() {
 
                   {/* SQL Preview */}
                   <details className="group">
-                    <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-300 flex items-center gap-1">
+                    <summary className="cursor-pointer text-xs text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 flex items-center gap-1">
                       <ChevronRight className="w-3 h-3 group-open:rotate-90 transition-transform" />
                       View SQL
                     </summary>
-                    <pre className="mt-2 p-3 bg-dark-bg rounded text-xs font-mono text-gray-400 overflow-x-auto">
+                    <pre className="mt-2 p-3 bg-light-bg dark:bg-dark-bg rounded text-xs font-mono text-gray-900 dark:text-gray-400 overflow-x-auto border border-light-border dark:border-dark-border">
                       {query.sql}
                     </pre>
                   </details>
@@ -127,8 +127,8 @@ export function QueryHistoryPage() {
 
         {/* Pagination */}
         {data.total_pages > 1 && (
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-dark-border">
-            <p className="text-sm text-gray-400">
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-light-border dark:border-dark-border">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Page {data.page} of {data.total_pages}
             </p>
             <div className="flex gap-2">
