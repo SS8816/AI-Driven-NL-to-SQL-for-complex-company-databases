@@ -40,27 +40,27 @@ export function Sidebar() {
   return (
     <div
       className={cn(
-        'bg-dark-sidebar border-r border-dark-border h-full flex flex-col transition-all duration-300',
+        'bg-light-sidebar dark:bg-dark-sidebar border-r border-light-border dark:border-dark-border h-full flex flex-col transition-all duration-300',
         sidebarCollapsed ? 'w-20' : 'w-64'
       )}
     >
       {/* Header */}
-      <div className="p-4 border-b border-dark-border flex items-center justify-between">
+      <div className="p-4 border-b border-light-border dark:border-dark-border flex items-center justify-between">
         {!sidebarCollapsed && (
           <div>
-            <h1 className="text-lg font-bold text-gray-100">{config.app.name}</h1>
-            <p className="text-xs text-gray-400">{config.app.description}</p>
+            <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{config.app.name}</h1>
+            <p className="text-xs text-gray-600 dark:text-gray-400">{config.app.description}</p>
           </div>
         )}
         <button
           onClick={toggleSidebar}
-          className="p-2 hover:bg-dark-hover rounded-lg transition-colors"
+          className="p-2 hover:bg-light-hover dark:hover:bg-dark-hover rounded-lg transition-colors"
           title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {sidebarCollapsed ? (
-            <ChevronRight className="w-5 h-5 text-gray-400" />
+            <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           ) : (
-            <ChevronLeft className="w-5 h-5 text-gray-400" />
+            <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           )}
         </button>
       </div>
@@ -94,18 +94,18 @@ export function Sidebar() {
       </nav>
 
       {/* User Info & Logout */}
-      <div className="p-4 border-t border-dark-border">
+      <div className="p-4 border-t border-light-border dark:border-dark-border">
         {!sidebarCollapsed ? (
           <div className="space-y-3">
-            <div className="flex items-center gap-3 px-3 py-2 bg-dark-card rounded-lg">
+            <div className="flex items-center gap-3 px-3 py-2 bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border">
               <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center">
                 <User className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-100 truncate">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                   {user?.full_name || user?.username}
                 </p>
-                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-500 truncate">{user?.email}</p>
               </div>
             </div>
             <button
@@ -119,7 +119,7 @@ export function Sidebar() {
         ) : (
           <button
             onClick={logout}
-            className="w-full p-2 hover:bg-dark-hover rounded-lg transition-colors flex items-center justify-center text-error"
+            className="w-full p-2 hover:bg-light-hover dark:hover:bg-dark-hover rounded-lg transition-colors flex items-center justify-center text-error"
             title="Logout"
           >
             <LogOut className="w-5 h-5" />

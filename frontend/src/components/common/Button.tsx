@@ -27,7 +27,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       primary: 'btn-primary',
       secondary: 'btn-secondary',
       danger: 'btn-danger',
-      ghost: 'text-gray-400 hover:text-gray-100 hover:bg-dark-hover',
+      ghost: 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-light-hover dark:hover:bg-dark-hover',
     };
 
     const sizes = {

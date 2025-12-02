@@ -8,7 +8,7 @@ interface MainLayoutProps {
 
 export function MainLayout({ children }: MainLayoutProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-dark-bg">
+    <div className="flex h-screen overflow-hidden bg-light-bg dark:bg-dark-bg transition-colors">
       {/* Sidebar */}
       <Sidebar />
 

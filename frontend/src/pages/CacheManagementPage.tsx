@@ -50,18 +50,18 @@ export function CacheManagementPage() {
       {/* Overview Card */}
       <Card title="Cache Overview" subtitle="Current cache statistics">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-4 bg-dark-sidebar rounded-lg">
-            <div className="flex items-center gap-2 text-gray-400 mb-2">
+          <div className="p-4 bg-light-sidebar dark:bg-dark-sidebar rounded-lg border border-light-border dark:border-dark-border">
+            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-2">
               <Database className="w-4 h-4" />
               <span className="text-xs">Total Entries</span>
             </div>
-            <div className="text-2xl font-bold text-gray-100">
+            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {formatNumber(stats.total_entries)}
             </div>
           </div>
 
-          <div className="p-4 bg-dark-sidebar rounded-lg">
-            <div className="flex items-center gap-2 text-gray-400 mb-2">
+          <div className="p-4 bg-light-sidebar dark:bg-dark-sidebar rounded-lg border border-light-border dark:border-dark-border">
+            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-2">
               <Database className="w-4 h-4" />
               <span className="text-xs">Active Entries</span>
             </div>
@@ -70,8 +70,8 @@ export function CacheManagementPage() {
             </div>
           </div>
 
-          <div className="p-4 bg-dark-sidebar rounded-lg">
-            <div className="flex items-center gap-2 text-gray-400 mb-2">
+          <div className="p-4 bg-light-sidebar dark:bg-dark-sidebar rounded-lg border border-light-border dark:border-dark-border">
+            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-2">
               <Trash2 className="w-4 h-4" />
               <span className="text-xs">Expired Entries</span>
             </div>
@@ -80,12 +80,12 @@ export function CacheManagementPage() {
             </div>
           </div>
 
-          <div className="p-4 bg-dark-sidebar rounded-lg">
-            <div className="flex items-center gap-2 text-gray-400 mb-2">
+          <div className="p-4 bg-light-sidebar dark:bg-dark-sidebar rounded-lg border border-light-border dark:border-dark-border">
+            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-2">
               <HardDrive className="w-4 h-4" />
               <span className="text-xs">Total Size</span>
             </div>
-            <div className="text-2xl font-bold text-gray-100">
+            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {formatBytes(stats.total_size_mb * 1024 * 1024)}
             </div>
           </div>
@@ -102,8 +102,8 @@ export function CacheManagementPage() {
           </Button>
 
           {stats.hit_rate !== undefined && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-dark-sidebar rounded-lg">
-              <span className="text-sm text-gray-400">Hit Rate:</span>
+            <div className="flex items-center gap-2 px-4 py-2 bg-light-sidebar dark:bg-dark-sidebar rounded-lg border border-light-border dark:border-dark-border">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Hit Rate:</span>
               <Badge variant="success">
                 {(stats.hit_rate * 100).toFixed(1)}%
               </Badge>
@@ -128,22 +128,22 @@ export function CacheManagementPage() {
             {stats.cached_rules.map((rule, idx) => (
               <div
                 key={idx}
-                className="p-4 bg-dark-sidebar rounded-lg border border-dark-border flex items-center justify-between"
+                className="p-4 bg-light-sidebar dark:bg-dark-sidebar rounded-lg border border-light-border dark:border-dark-border flex items-center justify-between"
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <Database className="w-5 h-5 text-primary-400" />
                     <div>
-                      <h3 className="font-medium text-gray-100">
+                      <h3 className="font-medium text-gray-900 dark:text-gray-100">
                         {rule.rule_category}
                       </h3>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
                         Database: {rule.database}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs text-gray-400">
+                  <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
                     <div className="flex items-center gap-1">
                       <Database className="w-3 h-3" />
                       {formatNumber(rule.entry_count)} entries

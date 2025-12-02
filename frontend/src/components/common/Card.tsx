@@ -15,10 +15,10 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
           <div className="flex items-start justify-between mb-4">
             <div>
               {title && (
-                <h3 className="text-lg font-semibold text-gray-100">{title}</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
               )}
               {subtitle && (
-                <p className="text-sm text-gray-400 mt-1">{subtitle}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{subtitle}</p>
               )}
             </div>
             {headerAction && <div>{headerAction}</div>}

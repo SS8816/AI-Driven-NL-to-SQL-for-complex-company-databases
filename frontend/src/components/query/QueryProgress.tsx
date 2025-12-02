@@ -26,7 +26,7 @@ export function QueryProgress({ steps, currentStep }: QueryProgressProps) {
           return (
             <div
               key={index}
-              className="flex items-start gap-3 p-3 bg-dark-sidebar rounded-lg"
+              className="flex items-start gap-3 p-3 bg-light-sidebar dark:bg-dark-sidebar rounded-lg border border-light-border dark:border-dark-border"
             >
               <div className="flex-shrink-0 mt-0.5">
                 {isFailed ? (
@@ -48,21 +48,21 @@ export function QueryProgress({ steps, currentStep }: QueryProgressProps) {
                         ? 'text-success'
                         : isFailed
                         ? 'text-error'
-                        : 'text-gray-400'
+                        : 'text-gray-600 dark:text-gray-400'
                     }`}
                   >
                     {step.stage}
                   </span>
                   {step.progress_percent !== undefined && (
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 dark:text-gray-500">
                       {step.progress_percent}%
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-gray-400">{step.message}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{step.message}</p>
 
                 {step.progress_percent !== undefined && (
-                  <div className="mt-2 w-full bg-dark-border rounded-full h-1.5">
+                  <div className="mt-2 w-full bg-light-border dark:bg-dark-border rounded-full h-1.5">
                     <div
                       className="bg-primary-500 h-1.5 rounded-full transition-all duration-300"
                       style={{ width: `${step.progress_percent}%` }}

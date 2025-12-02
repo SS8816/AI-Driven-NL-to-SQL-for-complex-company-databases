@@ -6,13 +6,13 @@ export function Header() {
   const currentDate = formatDateTime(new Date(), 'EEEE, MMMM d, yyyy');
 
   return (
-    <header className="bg-dark-sidebar border-b border-dark-border px-6 py-4">
+    <header className="bg-light-sidebar dark:bg-dark-sidebar border-b border-light-border dark:border-dark-border px-6 py-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-100">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             Welcome back, {user?.full_name || user?.username}!
           </h2>
-          <p className="text-sm text-gray-400 mt-1">{currentDate}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{currentDate}</p>
         </div>
         <div className="flex items-center gap-4">
           {user?.department && (

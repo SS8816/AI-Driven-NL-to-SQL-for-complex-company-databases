@@ -17,7 +17,7 @@ interface TabsProps {
 
 export function Tabs({ tabs, activeTab, onChange, className }: TabsProps) {
   return (
-    <div className={cn('border-b border-dark-border', className)}>
+    <div className={cn('border-b border-light-border dark:border-dark-border', className)}>
       <nav className="flex space-x-1" aria-label="Tabs">
         {tabs.map((tab) => (
           <button
@@ -26,11 +26,11 @@ export function Tabs({ tabs, activeTab, onChange, className }: TabsProps) {
             disabled={tab.disabled}
             className={cn(
               'px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors',
-              'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-dark-bg',
+              'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-light-bg dark:focus:ring-offset-dark-bg',
               activeTab === tab.id
-                ? 'bg-dark-sidebar text-gray-100 border-b-2 border-blue-500'
-                : 'text-gray-400 hover:text-gray-300 hover:bg-dark-hover',
-              tab.disabled && 'opacity-50 cursor-not-allowed hover:bg-transparent hover:text-gray-400'
+                ? 'bg-light-sidebar dark:bg-dark-sidebar text-gray-900 dark:text-gray-100 border-b-2 border-blue-500'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-light-hover dark:hover:bg-dark-hover',
+              tab.disabled && 'opacity-50 cursor-not-allowed hover:bg-transparent hover:text-gray-600 dark:hover:text-gray-400'
             )}
             aria-current={activeTab === tab.id ? 'page' : undefined}
           >
