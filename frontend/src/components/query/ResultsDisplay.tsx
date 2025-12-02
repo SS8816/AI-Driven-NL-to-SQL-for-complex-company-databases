@@ -31,6 +31,7 @@ export function ResultsDisplay({ result }: ResultsDisplayProps) {
   const [showSQL, setShowSQL] = useState(false);
 
   const ctasRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
 
   // Extract database from CTAS table name
   const database = result.ctas_table_name?.split('.')[0] || 'unknown';
@@ -41,6 +42,13 @@ export function ResultsDisplay({ result }: ResultsDisplayProps) {
       ctasRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [showCTASQuery]);
+
+  // Scroll to Map section when opened
+  useEffect(() => {
+    if (showMap && mapRef.current) {
+      mapRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [showMap]);
 
   // Check if result has geometry/WKT columns
   const hasGeometry = result.columns?.some(col =>
@@ -265,11 +273,13 @@ export function ResultsDisplay({ result }: ResultsDisplayProps) {
 
       {/* Map Visualization */}
       {showMap && hasGeometry && result.preview_data && result.columns && (
-        <ResultsMapView
-          rows={result.preview_data}
-          columns={result.columns}
-          onClose={() => setShowMap(false)}
-        />
+        <div ref={mapRef}>
+          <ResultsMapView
+            rows={result.preview_data}
+            columns={result.columns}
+            onClose={() => setShowMap(false)}
+          />
+        </div>
       )}
     </div>
   );

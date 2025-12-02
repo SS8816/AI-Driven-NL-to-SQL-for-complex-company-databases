@@ -176,7 +176,7 @@ export function EntityExtraction({
       .filter((col) => !selectedColumns.includes(col.column_name))
       .map((col) => ({
         value: col.column_name,
-        label: `${col.column_name} (${col.full_type})`,
+        label: col.column_name,
       }));
   };
 
@@ -255,24 +255,26 @@ export function EntityExtraction({
                   )}
 
                   {/* Add Column */}
-                  <div className="flex gap-2">
-                    <Select
-                      value={selectedNewColumnByTable[tableName] || ''}
-                      onChange={(e) =>
-                        setSelectedNewColumnByTable((prev) => ({
-                          ...prev,
-                          [tableName]: e.target.value,
-                        }))
-                      }
-                      options={getAvailableColumns(tableName)}
-                      placeholder="Select column to add..."
-                      className="flex-1"
-                    />
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <Select
+                        value={selectedNewColumnByTable[tableName] || ''}
+                        onChange={(e) =>
+                          setSelectedNewColumnByTable((prev) => ({
+                            ...prev,
+                            [tableName]: e.target.value,
+                          }))
+                        }
+                        options={getAvailableColumns(tableName)}
+                        placeholder="Select column to add..."
+                      />
+                    </div>
                     <Button
                       variant="secondary"
                       size="sm"
                       onClick={() => handleAddColumn(tableName)}
                       disabled={!selectedNewColumnByTable[tableName]}
+                      className="flex-shrink-0"
                     >
                       Add
                     </Button>
@@ -284,18 +286,20 @@ export function EntityExtraction({
             {/* Add New Table */}
             <div className="p-4 border border-dashed border-dark-border rounded-lg bg-dark-bg/50">
               <p className="text-sm text-gray-400 mb-3">Add additional tables if LLM missed any:</p>
-              <div className="flex gap-2">
-                <Select
-                  value={selectedNewTable}
-                  onChange={(e) => setSelectedNewTable(e.target.value)}
-                  options={availableTables}
-                  placeholder="Select table to add..."
-                  className="flex-1"
-                />
+              <div className="flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <Select
+                    value={selectedNewTable}
+                    onChange={(e) => setSelectedNewTable(e.target.value)}
+                    options={availableTables}
+                    placeholder="Select table to add..."
+                  />
+                </div>
                 <Button
                   variant="secondary"
                   onClick={handleAddTable}
                   disabled={!selectedNewTable}
+                  className="flex-shrink-0"
                 >
                   Add Table
                 </Button>

@@ -47,14 +47,15 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             size={maxVisibleOptions}
             className={cn(
               maxVisibleOptions
-                ? 'w-full px-3 py-2 bg-dark-sidebar border border-dark-border rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 overflow-y-auto'
+                ? 'w-full px-4 py-2 bg-dark-sidebar border border-dark-border rounded-lg text-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 overflow-y-auto transition-colors'
                 : 'input appearance-none pr-10',
               error && 'border-error focus:ring-error',
               className
             )}
             style={maxVisibleOptions ? {
               height: 'auto',
-              maxHeight: '16rem', // Limit to ~10 options visible
+              maxHeight: '14rem', // Limit to ~8-9 options visible
+              minHeight: '8rem',
             } : undefined}
             {...props}
           >

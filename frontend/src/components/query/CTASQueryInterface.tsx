@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Filter,
@@ -9,6 +9,7 @@ import {
   CheckCircle,
   ChevronDown,
   ChevronUp,
+  MapPin,
 } from 'lucide-react';
 import {
   Card,
@@ -28,6 +29,7 @@ import {
   CTASCountriesResponse,
 } from '@/types';
 import { formatExecutionTime, truncateCell } from '@/utils/format';
+import { ResultsMapView } from '@/components/map';
 import toast from 'react-hot-toast';
 
 interface CTASQueryInterfaceProps {
@@ -59,6 +61,11 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
   const [isLoadingCountries, setIsLoadingCountries] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [showSchema, setShowSchema] = useState(false);
+  const [showQueryResults, setShowQueryResults] = useState(true);
+  const [showMap, setShowMap] = useState(false);
+
+  // Ref for auto-scroll
+  const mapRef = useRef<HTMLDivElement>(null);
 
   // Data state
   const [schema, setSchema] = useState<CTASSchemaResponse | null>(null);
@@ -100,6 +107,13 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
       loadCountries();
     }
   }, [activeTab, schema]);
+
+  // Scroll to Map section when opened
+  useEffect(() => {
+    if (showMap && mapRef.current) {
+      mapRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [showMap]);
 
   const loadSchema = async () => {
     try {
@@ -256,10 +270,11 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
               {schema.columns.map((col) => (
                 <div
                   key={col.name}
-                  className="p-2 bg-dark-sidebar rounded border border-dark-border"
+                  className="p-2 bg-dark-sidebar rounded border border-dark-border overflow-hidden"
+                  title={`${col.name}: ${col.type}`}
                 >
-                  <div className="font-mono text-sm text-gray-200">{col.name}</div>
-                  <div className="text-xs text-gray-500">{col.type}</div>
+                  <div className="font-mono text-sm text-gray-200 truncate">{col.name}</div>
+                  <div className="text-xs text-gray-500 truncate">{col.type}</div>
                 </div>
               ))}
             </div>
@@ -412,74 +427,117 @@ export function CTASQueryInterface({ ctasTableName, database }: CTASQueryInterfa
 
       {/* Query Results */}
       {queryResult && (
-        <Card title="Query Results">
-          {queryResult.success ? (
-            <div className="space-y-4">
-              {/* Stats */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-dark-sidebar rounded-lg">
-                  <div className="flex items-center gap-2 text-gray-400 mb-1">
-                    <Database className="w-4 h-4" />
-                    <span className="text-xs">Rows Returned</span>
-                  </div>
-                  <div className="text-2xl font-bold text-gray-100">
-                    {queryResult.row_count.toLocaleString()}
-                  </div>
-                </div>
+        <Card
+          title="Query Results"
+          subtitle={showQueryResults ? `${queryResult.row_count.toLocaleString()} rows - Click to collapse` : `${queryResult.row_count.toLocaleString()} rows - Click to expand`}
+          headerAction={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowQueryResults(!showQueryResults)}
+            >
+              {showQueryResults ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </Button>
+          }
+        >
+          {showQueryResults && (
+            <>
+              {queryResult.success ? (
+                <div className="space-y-4">
+                  {/* Stats */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 bg-dark-sidebar rounded-lg">
+                      <div className="flex items-center gap-2 text-gray-400 mb-1">
+                        <Database className="w-4 h-4" />
+                        <span className="text-xs">Rows Returned</span>
+                      </div>
+                      <div className="text-2xl font-bold text-gray-100">
+                        {queryResult.row_count.toLocaleString()}
+                      </div>
+                    </div>
 
-                <div className="p-3 bg-dark-sidebar rounded-lg">
-                  <div className="flex items-center gap-2 text-gray-400 mb-1">
-                    <Clock className="w-4 h-4" />
-                    <span className="text-xs">Execution Time</span>
+                    <div className="p-3 bg-dark-sidebar rounded-lg">
+                      <div className="flex items-center gap-2 text-gray-400 mb-1">
+                        <Clock className="w-4 h-4" />
+                        <span className="text-xs">Execution Time</span>
+                      </div>
+                      <div className="text-2xl font-bold text-gray-100">
+                        {formatExecutionTime(queryResult.execution_time_ms / 1000)}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-2xl font-bold text-gray-100">
-                    {formatExecutionTime(queryResult.execution_time_ms / 1000)}
-                  </div>
-                </div>
-              </div>
 
-              {/* Data Table */}
-              {queryResult.rows && queryResult.rows.length > 0 && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-dark-border">
-                        {queryResult.columns?.map((col) => (
-                          <th
-                            key={col}
-                            className="text-left p-3 font-medium text-gray-300 whitespace-nowrap"
-                          >
-                            {col}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {queryResult.rows.map((row, idx) => (
-                        <tr
-                          key={idx}
-                          className="border-b border-dark-border hover:bg-dark-hover"
-                        >
-                          {queryResult.columns?.map((col) => (
-                            <td key={col} className="p-3 text-gray-400 font-mono text-xs max-w-xs truncate" title={String(row[col] ?? 'NULL')}>
-                              {truncateCell(row[col], 100)}
-                            </td>
+                  {/* View on Maps Button */}
+                  {queryResult.columns?.some(col =>
+                    col.toLowerCase().includes('wkt') ||
+                    col.toLowerCase().includes('geometry') ||
+                    col.toLowerCase().includes('geom')
+                  ) && queryResult.rows && queryResult.rows.length > 0 && (
+                    <Button
+                      onClick={() => setShowMap(!showMap)}
+                      variant={showMap ? 'primary' : 'secondary'}
+                      size="sm"
+                    >
+                      <MapPin className="w-4 h-4 mr-2" />
+                      {showMap ? 'Hide' : 'View on'} Map
+                    </Button>
+                  )}
+
+                  {/* Data Table */}
+                  {queryResult.rows && queryResult.rows.length > 0 && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-dark-border">
+                            {queryResult.columns?.map((col) => (
+                              <th
+                                key={col}
+                                className="text-left p-3 font-medium text-gray-300 whitespace-nowrap"
+                              >
+                                {col}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {queryResult.rows.map((row, idx) => (
+                            <tr
+                              key={idx}
+                              className="border-b border-dark-border hover:bg-dark-hover"
+                            >
+                              {queryResult.columns?.map((col) => (
+                                <td key={col} className="p-3 text-gray-400 font-mono text-xs max-w-xs truncate" title={String(row[col] ?? 'NULL')}>
+                                  {truncateCell(row[col], 100)}
+                                </td>
+                              ))}
+                            </tr>
                           ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-6 text-center">
+                  <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+                  <p className="text-gray-300 font-medium">Query Failed</p>
+                  <p className="text-gray-500 text-sm mt-2">{queryResult.error}</p>
                 </div>
               )}
-            </div>
-          ) : (
-            <div className="p-6 text-center">
-              <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-              <p className="text-gray-300 font-medium">Query Failed</p>
-              <p className="text-gray-500 text-sm mt-2">{queryResult.error}</p>
-            </div>
+            </>
           )}
         </Card>
+      )}
+
+      {/* Map Visualization */}
+      {showMap && queryResult && queryResult.rows && queryResult.columns && (
+        <div ref={mapRef}>
+          <ResultsMapView
+            rows={queryResult.rows}
+            columns={queryResult.columns}
+            onClose={() => setShowMap(false)}
+          />
+        </div>
       )}
     </div>
   );

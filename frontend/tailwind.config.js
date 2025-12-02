@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class', // Enable class-based dark mode
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -7,13 +8,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Databricks-inspired dark theme colors
+        // Dark theme colors
         dark: {
           bg: '#0B1120',
           sidebar: '#1A1F2E',
           card: '#242936',
           border: '#2D3548',
           hover: '#2A3142',
+        },
+        // Light theme colors (beige/off-white)
+        light: {
+          bg: '#FAF8F3',          // Warm off-white
+          sidebar: '#F5F1E8',      // Beige sidebar
+          card: '#FFFFFF',         // Pure white cards
+          border: '#E6DFD0',       // Soft beige border
+          hover: '#F0EBE1',        // Light beige hover
         },
         primary: {
           50: '#E6F0FF',
